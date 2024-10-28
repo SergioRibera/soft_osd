@@ -17,3 +17,6 @@ opt-level = 3
 codegen-units = 1
 
 [dependencies]
+clap = { version = "4.5.20", features = ["derive"] }
+smithay-client-toolkit = "0.19.2"
+wayland-client = "0.31.7"
