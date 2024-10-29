@@ -1,5 +1,4 @@
-use std::convert::TryInto;
-
+use raqote::DrawTarget;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_seat,
@@ -20,7 +19,7 @@ use smithay_client_toolkit::{
 use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_output, wl_seat, wl_shm, wl_surface},
-    Connection, EventQueue, QueueHandle,
+    Connection, QueueHandle,
 };
 
 use crate::{
@@ -28,7 +27,11 @@ use crate::{
     config::{Config, OsdPosition},
 };
 
-pub struct Window<T: App + Default> {
+pub(crate) trait AppTy: App + From<Config> {}
+
+impl<T: App + From<Config>> AppTy for T {}
+
+pub struct Window<T: AppTy> {
     registry_state: RegistryState,
     seat_state: SeatState,
     output_state: OutputState,
@@ -40,14 +43,14 @@ pub struct Window<T: App + Default> {
     width: u32,
     height: u32,
     screen: Option<(i32, i32)>,
-    position: OsdPosition,
     layer: LayerSurface,
 
+    context: DrawTarget,
     render: T,
 }
 
 fn set_pos(
-    (width, height): (u32, u32),
+    (w, h): (u32, u32),
     layer: &LayerSurface,
     position: OsdPosition,
     screen: Option<&(i32, i32)>,
@@ -55,16 +58,11 @@ fn set_pos(
     let Some(&(sw, sh)) = screen else {
         return;
     };
-    let (w, h) = match position {
-        OsdPosition::Bottom | OsdPosition::Top => (width, height),
-        OsdPosition::Left | OsdPosition::Right => (height, width),
-    };
-    let mut anchor = Anchor::empty();
     let (x, y) = match position {
-        OsdPosition::Top => ((sw as u32 / 2) - width / 2, 0),
-        OsdPosition::Left => (0, (sh as u32 / 2) - width / 2),
-        OsdPosition::Right => (sw as u32 - height, (sh as u32 / 2) - width / 2),
-        OsdPosition::Bottom => ((sw as u32 / 2) - width / 2, sh as u32 - height),
+        OsdPosition::Top => ((sw as u32 / 2) - w / 2, 0),
+        OsdPosition::Left => (0, (sh as u32 / 2) - h / 2),
+        OsdPosition::Right => (sw as u32 - w, (sh as u32 / 2) - h / 2),
+        OsdPosition::Bottom => ((sw as u32 / 2) - w / 2, sh as u32 - h),
     };
     println!("Screen: ({sw}, {sh}) => {position:?} ({x}, {y}, {w}, {h})");
     layer.set_anchor(Anchor::LEFT | Anchor::TOP);
@@ -73,14 +71,17 @@ fn set_pos(
     layer.wl_surface().damage_buffer(0, 0, w as i32, h as i32);
 }
 
-impl<T: App + Default + 'static> Window<T> {
-    pub fn run(
-        Config {
+impl<T: AppTy + 'static> Window<T> {
+    pub fn run(config: Config) {
+        let &Config {
             position,
             width,
             height,
-        }: Config,
-    ) {
+        } = &config;
+        let (width, height) = match position {
+            OsdPosition::Bottom | OsdPosition::Top => (width, height),
+            OsdPosition::Left | OsdPosition::Right => (height, width),
+        };
         let conn = Connection::connect_to_env().unwrap();
         let (globals, mut event_queue) = registry_queue_init(&conn).unwrap();
         let qh = event_queue.handle();
@@ -96,20 +97,21 @@ impl<T: App + Default + 'static> Window<T> {
 
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
+        let context = DrawTarget::new(width as i32, height as i32);
         let mut window = Self {
             exit: false,
-            first_configure: true,
-            registry_state: RegistryState::new(&globals),
-            seat_state: SeatState::new(&globals, &qh),
-            output_state: OutputState::new(&globals, &qh),
             shm,
             pool,
             width,
             height,
-            position,
-            layer: layer.clone(),
+            context,
             screen: None,
-            render: Default::default(),
+            layer: layer.clone(),
+            first_configure: true,
+            render: T::from(config),
+            registry_state: RegistryState::new(&globals),
+            seat_state: SeatState::new(&globals, &qh),
+            output_state: OutputState::new(&globals, &qh),
         };
 
         event_queue.roundtrip(&mut window).unwrap();
@@ -147,21 +149,9 @@ impl<T: App + Default + 'static> Window<T> {
             .expect("create buffer");
 
         // Draw to the window:
-        {
-            canvas
-                .chunks_exact_mut(4)
-                .enumerate()
-                .for_each(|(index, chunk)| {
-                    let a = 0xFF;
-                    let r = 0x00;
-                    let g = 0x00;
-                    let b = 0x00;
-                    let color: i32 = (a << 24) + (r << 16) + (g << 8) + b;
-
-                    let array: &mut [u8; 4] = chunk.try_into().unwrap();
-                    *array = color.to_le_bytes();
-                });
-        }
+        self.render.run(&mut self.context, (width, height));
+        assert_eq!(canvas.len(), self.context.get_data_u8().len());
+        canvas.copy_from_slice(self.context.get_data_u8());
 
         // Request our next frame
         self.layer
@@ -176,7 +166,7 @@ impl<T: App + Default + 'static> Window<T> {
     }
 }
 
-impl<T: App + Default + 'static> CompositorHandler for Window<T> {
+impl<T: AppTy + 'static> CompositorHandler for Window<T> {
     fn scale_factor_changed(
         &mut self,
         _conn: &Connection,
@@ -228,7 +218,7 @@ impl<T: App + Default + 'static> CompositorHandler for Window<T> {
     }
 }
 
-impl<T: App + Default + 'static> OutputHandler for Window<T> {
+impl<T: AppTy + 'static> OutputHandler for Window<T> {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.output_state
     }
@@ -258,7 +248,7 @@ impl<T: App + Default + 'static> OutputHandler for Window<T> {
     }
 }
 
-impl<T: App + Default + 'static> LayerShellHandler for Window<T> {
+impl<T: AppTy + 'static> LayerShellHandler for Window<T> {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
         self.exit = true;
     }
@@ -287,7 +277,7 @@ impl<T: App + Default + 'static> LayerShellHandler for Window<T> {
     }
 }
 
-impl<T: App + Default + 'static> SeatHandler for Window<T> {
+impl<T: AppTy + 'static> SeatHandler for Window<T> {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.seat_state
     }
@@ -315,13 +305,13 @@ impl<T: App + Default + 'static> SeatHandler for Window<T> {
     fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
 }
 
-impl<T: App + Default + 'static> ShmHandler for Window<T> {
+impl<T: AppTy + 'static> ShmHandler for Window<T> {
     fn shm_state(&mut self) -> &mut Shm {
         &mut self.shm
     }
 }
 
-impl<T: App + Default + 'static> WindowHandler for Window<T> {
+impl<T: AppTy + 'static> WindowHandler for Window<T> {
     fn request_close(
         &mut self,
         _conn: &Connection,
@@ -352,19 +342,19 @@ impl<T: App + Default + 'static> WindowHandler for Window<T> {
     }
 }
 
-impl<T: App + Default + 'static> ProvidesRegistryState for Window<T> {
-    registry_handlers![@<T: App + Default + 'static> OutputState, SeatState];
+impl<T: AppTy + 'static> ProvidesRegistryState for Window<T> {
+    registry_handlers![@<T: AppTy> OutputState, SeatState];
 
     fn registry(&mut self) -> &mut RegistryState {
         &mut self.registry_state
     }
 }
 
-delegate_compositor!(@<T: App + Default + 'static> Window<T>);
-delegate_output!(@<T: App + Default + 'static> Window<T>);
-delegate_shm!(@<T: App + Default + 'static> Window<T>);
-delegate_seat!(@<T: App + Default + 'static> Window<T>);
-delegate_layer!(@<T: App + Default + 'static> Window<T>);
-delegate_registry!(@<T: App + Default + 'static> Window<T>);
-delegate_xdg_shell!(@<T: App + Default + 'static> Window<T>);
-delegate_xdg_window!(@<T: App + Default + 'static> Window<T>);
+delegate_compositor!(@<T: AppTy + 'static> Window<T>);
+delegate_output!(@<T: AppTy + 'static> Window<T>);
+delegate_shm!(@<T: AppTy + 'static> Window<T>);
+delegate_seat!(@<T: AppTy + 'static> Window<T>);
+delegate_layer!(@<T: AppTy + 'static> Window<T>);
+delegate_registry!(@<T: AppTy + 'static> Window<T>);
+delegate_xdg_shell!(@<T: AppTy + 'static> Window<T>);
+delegate_xdg_window!(@<T: AppTy + 'static> Window<T>);
