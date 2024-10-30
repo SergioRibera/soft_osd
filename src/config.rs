@@ -15,9 +15,12 @@ pub struct Config {
     /// The radius of the widget
     #[clap(long, short, default_value = "80")]
     pub radius: u32,
-    /// The animation duration to show the widget (in ms)
+    /// The animation duration to show the widget (in milliseconds)
     #[clap(long, short = 'd', default_value = "1.0")]
     pub animation_duration: f32,
+    /// The animation duration to show the widget (in seconds)
+    #[clap(long, short, default_value = "2.0")]
+    pub show_duration: f32,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]
