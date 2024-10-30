@@ -106,11 +106,7 @@ impl App for MainApp {
         ctx.fill(
             &path,
             &Source::Solid(SolidSource::from_unpremultiplied_argb(255, 255, 255, 255)),
-            &DrawOptions {
-                alpha: 1.0,
-                blend_mode: BlendMode::Add,
-                antialias: AntialiasMode::Gray,
-            },
+            &DrawOptions::default(),
         );
 
         if self.is_exiting && self.animation_progress >= 1.0 {

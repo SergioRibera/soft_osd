@@ -93,8 +93,13 @@ impl<T: AppTy + 'static> Window<T> {
         let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
         let surface = compositor.create_surface(&qh);
 
-        let layer =
-            layer_shell.create_layer_surface(&qh, surface, Layer::Top, Some("simple_layer"), None);
+        let layer = layer_shell.create_layer_surface(
+            &qh,
+            surface,
+            Layer::Overlay,
+            Some("simple_layer"),
+            None,
+        );
 
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
@@ -161,6 +166,9 @@ impl<T: AppTy + 'static> Window<T> {
         assert_eq!(canvas.len(), self.context.get_data_u8().len());
         canvas.copy_from_slice(self.context.get_data_u8());
 
+        self.layer
+            .wl_surface()
+            .damage_buffer(0, 0, width as i32, height as i32);
         // Request our next frame
         self.layer
             .wl_surface()
