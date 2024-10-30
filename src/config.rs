@@ -1,6 +1,6 @@
 use clap::{Parser, ValueEnum};
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Parser)]
+#[derive(Debug, Default, Clone, PartialEq, Parser)]
 #[clap(author, version)]
 pub struct Config {
     /// The Position into Screen
@@ -15,6 +15,9 @@ pub struct Config {
     /// The radius of the widget
     #[clap(long, short, default_value = "80")]
     pub radius: u32,
+    /// The animation duration to show the widget (in ms)
+    #[clap(long, short = 'd', default_value = "1.0")]
+    pub animation_duration: f32,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]
