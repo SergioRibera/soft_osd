@@ -7,13 +7,13 @@ pub struct Config {
     #[clap(long, short, default_value = "top")]
     pub position: OsdPosition,
     /// The width of the widget
-    #[clap(long, short, default_value = "400")]
+    #[clap(long, short, default_value = "600")]
     pub width: u32,
     /// The height of the widget
     #[clap(long, short = 'a', default_value = "80")]
     pub height: u32,
     /// The radius of the widget
-    #[clap(long, short, default_value = "80")]
+    #[clap(long, short, default_value = "100")]
     pub radius: u32,
     /// The animation duration to show the widget (in milliseconds)
     #[clap(long, short = 'd', default_value = "1.0")]

@@ -57,9 +57,7 @@ impl App for MainApp {
         }
 
         let &Config { radius, .. } = &self.config;
-        let (width, height) = ((ow - radius * 2) as f32, oh as f32);
-        let ow = ow as f32;
-        let radius = radius as f32; // Origin radius
+        let (width, height) = ((ow - radius * 4) as f32, oh as f32);
 
         let progress = if self.is_exiting {
             1.0 - ease_out_cubic(self.animation_progress)
@@ -68,23 +66,29 @@ impl App for MainApp {
         };
 
         let mut pb = PathBuilder::new();
-
-        // let radius = or * (1.0 - progress) + or; // Animated radius
+        let or = radius as f32; // Origin radius
+        let rp = or * progress; // Radius progress
         let animated_height = height * progress;
 
-        // pb.move_to(or - or * progress, 0.0);
-        pb.move_to(0.0, 0.0);
+        pb.move_to(rp, 0.0);
         // First part
-        pb.cubic_to(radius, 0.0, 0.0, animated_height, radius, animated_height);
+        pb.cubic_to(rp + or, 0.0, rp, animated_height, or * 2.0, animated_height);
 
-        pb.line_to(width + radius, animated_height);
+        pb.line_to(width + or * 2.0, animated_height);
 
         // Last part
-        pb.move_to(width + radius, animated_height);
-        pb.cubic_to(ow, animated_height, width + radius, 0.0, ow, 0.0);
+        pb.move_to(width + or * 2.0, animated_height);
+        pb.cubic_to(
+            width + or * 3.0 + or * (1.0 - progress),
+            animated_height,
+            width + or * 2.0 + or * (1.0 - progress),
+            0.0,
+            width + or * 3.0 + or * (1.0 - progress),
+            0.0,
+        );
 
         // Close
-        pb.line_to(0.0, 0.0);
+        pb.line_to(rp, 0.0);
         pb.close();
 
         let path = pb.finish();
