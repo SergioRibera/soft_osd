@@ -12,6 +12,9 @@ pub struct Config {
     /// The height of the widget
     #[clap(long, short = 'a', default_value = "80")]
     pub height: u32,
+    /// The radius of the widget
+    #[clap(long, short, default_value = "80")]
+    pub radius: u32,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]

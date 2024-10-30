@@ -77,6 +77,7 @@ impl<T: AppTy + 'static> Window<T> {
             position,
             width,
             height,
+            ..
         } = &config;
         let (width, height) = match position {
             OsdPosition::Bottom | OsdPosition::Top => (width, height),
