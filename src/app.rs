@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use raqote::*;
 
-use crate::config::Config;
+use crate::config::{Config, OsdPosition};
 
 pub trait App: From<Config> {
     fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget, size: (u32, u32));
@@ -68,11 +68,22 @@ impl App for MainApp {
         let mut pb = PathBuilder::new();
         let or = radius as f32; // Origin radius
         let rp = or * progress; // Radius progress
-        let animated_height = height * progress;
+        let (start_height, animated_height) = if self.config.position == OsdPosition::Bottom {
+            (height, height * (1.0 - progress))
+        } else {
+            (0.0, height * progress)
+        };
 
-        pb.move_to(rp, 0.0);
+        pb.move_to(rp, start_height);
         // First part
-        pb.cubic_to(rp + or, 0.0, rp, animated_height, or * 2.0, animated_height);
+        pb.cubic_to(
+            rp + or,
+            start_height,
+            rp,
+            animated_height,
+            or * 2.0,
+            animated_height,
+        );
 
         pb.line_to(width + or * 2.0, animated_height);
 
@@ -82,13 +93,13 @@ impl App for MainApp {
             width + or * 3.0 + or * (1.0 - progress),
             animated_height,
             width + or * 2.0 + or * (1.0 - progress),
-            0.0,
+            start_height,
             width + or * 3.0 + or * (1.0 - progress),
-            0.0,
+            start_height,
         );
 
         // Close
-        pb.line_to(rp, 0.0);
+        pb.line_to(rp, start_height);
         pb.close();
 
         let path = pb.finish();
