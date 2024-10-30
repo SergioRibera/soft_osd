@@ -3,16 +3,17 @@ use std::time::Instant;
 use raqote::*;
 
 use crate::config::{Config, OsdPosition};
+use crate::utils::ToColor;
 
 pub trait App: From<Config> {
     fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget, size: (u32, u32));
 }
 
-#[derive(Debug, Clone)]
 pub struct MainApp {
     time: Instant,
     config: Config,
     is_exiting: bool,
+    background: Source<'static>,
     show_duration: f32,
     start_time: Instant,
     animation_progress: f32,
@@ -23,8 +24,10 @@ impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
         let animation_duration = config.animation_duration;
         let show_duration = config.show_duration + animation_duration;
+        let background = Source::Solid(config.background.to_color());
         Self {
             config,
+            background,
             show_duration,
             is_exiting: false,
             animation_duration,
@@ -103,11 +106,7 @@ impl App for MainApp {
         pb.close();
 
         let path = pb.finish();
-        ctx.fill(
-            &path,
-            &Source::Solid(SolidSource::from_unpremultiplied_argb(255, 255, 255, 255)),
-            &DrawOptions::default(),
-        );
+        ctx.fill(&path, &self.background, &DrawOptions::default());
 
         if self.is_exiting && self.animation_progress >= 1.0 {
             println!("Exit: {:?}", self.start_time.elapsed().as_secs_f32());

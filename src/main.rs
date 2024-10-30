@@ -6,6 +6,7 @@ use self::window::Window;
 
 mod app;
 mod config;
+mod utils;
 mod window;
 
 fn main() {
