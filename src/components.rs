@@ -3,8 +3,10 @@ use raqote::DrawTarget;
 use crate::config::Config;
 
 mod background;
+mod icon;
 
 pub use background::Background;
+pub use icon::Icon;
 
 /// Trait para componentes renderizables con ciclo de vida
 pub trait Component: Sized {

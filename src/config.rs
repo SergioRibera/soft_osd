@@ -21,13 +21,15 @@ pub struct Config {
     /// The animation duration to show the widget (in seconds)
     #[clap(long, short, default_value = "2.0")]
     pub show_duration: f32,
-    #[clap(
-        long,
-        short,
-        default_value = "#000",
-        help = "Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'"
-    )]
+    /// Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+    #[clap(long, short, default_value = "#000")]
     pub background: String,
+    /// Icons for Volume, mute, very low, mid, hight
+    #[clap(long, short, default_value = "")]
+    pub volume_icon: String,
+    /// Icon Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+    #[clap(long, short, default_value = "#FFFFFF")]
+    pub icon_color: String,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]

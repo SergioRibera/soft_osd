@@ -2,16 +2,20 @@ use std::time::Instant;
 
 use raqote::*;
 
-use crate::components::{Background, Component};
+use crate::components::{Background, Component, Icon};
 use crate::config::Config;
-use crate::utils::ease_out_cubic;
+use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> {
     fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget);
 }
 
 pub struct MainApp {
+    // Icons
+    volume_icons: Vec<char>,
+
     // Components
+    icon: Icon,
     background: Background,
 
     // Flow control
@@ -25,12 +29,27 @@ pub struct MainApp {
 
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
+        let icon_color = config.icon_color.to_color();
+        let volume_icons = config.volume_icon.chars().map(|v| v).collect::<Vec<_>>();
+
         let background = Background::new(&config, ());
+        let icon = Icon::new(
+            &config,
+            (
+                icon_color,
+                *volume_icons.get(0).expect("Cannot get volume icons"),
+            ),
+        );
+
         let animation_duration = config.animation_duration;
         let show_duration = config.show_duration + animation_duration;
 
         Self {
+            icon,
             background,
+
+            volume_icons,
+
             show_duration,
             is_exiting: false,
             animation_duration,
@@ -63,6 +82,7 @@ impl App for MainApp {
         };
 
         self.background.draw(ctx, progress);
+        self.icon.draw(ctx, progress);
 
         if self.is_exiting && self.animation_progress >= 1.0 {
             *exit = true;
