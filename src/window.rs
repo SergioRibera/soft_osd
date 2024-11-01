@@ -161,8 +161,7 @@ impl<T: AppTy + 'static> Window<T> {
             b: 0,
             a: 0,
         });
-        self.render
-            .run(&mut self.exit, &mut self.context, (width, height));
+        self.render.run(&mut self.exit, &mut self.context);
         assert_eq!(canvas.len(), self.context.get_data_u8().len());
         canvas.copy_from_slice(self.context.get_data_u8());
 

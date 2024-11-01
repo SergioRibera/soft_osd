@@ -5,6 +5,7 @@ use self::config::Config;
 use self::window::Window;
 
 mod app;
+mod components;
 mod config;
 mod utils;
 mod window;
