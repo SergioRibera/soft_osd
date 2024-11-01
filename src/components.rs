@@ -8,8 +8,10 @@ pub use background::Background;
 
 /// Trait para componentes renderizables con ciclo de vida
 pub trait Component: Sized {
+    type Args;
+
     /// Inicializa el componente con una configuración
-    fn new(config: &Config) -> Self;
+    fn new(config: &Config, args: Self::Args) -> Self;
 
     /// Renderiza el componente en el contexto de dibujo
     ///

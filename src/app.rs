@@ -11,10 +11,12 @@ pub trait App: From<Config> {
 }
 
 pub struct MainApp {
-    time: Instant,
-    is_exiting: bool,
+    // Components
     background: Background,
 
+    // Flow control
+    time: Instant,
+    is_exiting: bool,
     show_duration: f32,
     start_time: Instant,
     animation_progress: f32,
@@ -23,7 +25,7 @@ pub struct MainApp {
 
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
-        let background = Background::new(&config);
+        let background = Background::new(&config, ());
         let animation_duration = config.animation_duration;
         let show_duration = config.show_duration + animation_duration;
 
