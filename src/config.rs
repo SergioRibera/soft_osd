@@ -25,11 +25,14 @@ pub struct Config {
     #[clap(long, short, default_value = "#000")]
     pub background: String,
     /// Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
-    #[clap(long, short, default_value = "#FFF")]
+    #[clap(long, short = 'c', default_value = "#FFF")]
     pub foreground_color: String,
     /// Icons for Volume, mute, very low, mid, hight
     #[clap(long, short, default_value = "")]
     pub volume_icon: String,
+    /// Font for text in notifications mode, support: serif, sans-serif, monospace, cursive, fantasy or explicit name of font
+    #[clap(long, short, default_value = "serif")]
+    pub font: String,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]
