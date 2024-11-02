@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use raqote::*;
 
-use crate::components::{Background, Component, Icon};
+use crate::components::{Background, Component, Icon, Slider};
 use crate::config::Config;
 use crate::utils::{ease_out_cubic, ToColor};
 
@@ -17,6 +17,7 @@ pub struct MainApp {
     // Components
     icon: Icon,
     background: Background,
+    slider: Slider,
 
     // Flow control
     time: Instant,
@@ -33,6 +34,7 @@ impl From<Config> for MainApp {
         let volume_icons = config.volume_icon.chars().map(|v| v).collect::<Vec<_>>();
 
         let background = Background::new(&config, ());
+        let slider = Slider::new(&config, 0.5);
         let icon = Icon::new(
             &config,
             (
@@ -46,6 +48,7 @@ impl From<Config> for MainApp {
 
         Self {
             icon,
+            slider,
             background,
 
             volume_icons,
@@ -82,6 +85,7 @@ impl App for MainApp {
         };
 
         self.background.draw(ctx, progress);
+        self.slider.draw(ctx, progress);
         self.icon.draw(ctx, progress);
 
         if self.is_exiting && self.animation_progress >= 1.0 {

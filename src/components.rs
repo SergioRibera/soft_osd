@@ -4,9 +4,11 @@ use crate::config::Config;
 
 mod background;
 mod icon;
+mod slider;
 
 pub use background::Background;
 pub use icon::Icon;
+pub use slider::Slider;
 
 /// Trait para componentes renderizables con ciclo de vida
 pub trait Component: Sized {
