@@ -98,7 +98,7 @@ impl Component for Slider {
         ctx.fill(
             &bg,
             &Source::Solid(raqote::SolidSource::from_unpremultiplied_argb(
-                (self.c.a as f32 * progress) as u8,
+                (self.bg.a as f32 * (progress.powf(2.3))).min(255.0) as u8,
                 self.bg.r,
                 self.bg.g,
                 self.bg.b,
@@ -111,7 +111,7 @@ impl Component for Slider {
         ctx.fill(
             &fg,
             &Source::Solid(raqote::SolidSource::from_unpremultiplied_argb(
-                (self.c.a as f32 * progress) as u8,
+                (self.c.a as f32 * (progress.powf(2.3))).min(255.0) as u8,
                 self.c.r,
                 self.c.g,
                 self.c.b,
