@@ -1,5 +1,6 @@
 mod hex_rgb;
 
+use font_kit::family_name::FamilyName;
 use font_kit::font::Font;
 use font_kit::source::SystemSource;
 pub use hex_rgb::ToColor;
@@ -18,7 +19,7 @@ pub fn lighten_color(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
     (lighten(r), lighten(g), lighten(b))
 }
 
-pub fn load_font(content: char) -> Font {
+pub fn load_font_by_glyph(content: char) -> Font {
     let source = SystemSource::new();
     source
         .all_fonts()

@@ -1,7 +1,7 @@
 use font_kit::font::Font;
 use raqote::{Point, SolidSource, Source};
 
-use crate::utils::load_font;
+use crate::utils::load_font_by_glyph;
 
 use super::Component;
 
@@ -33,7 +33,7 @@ impl Component for Icon {
             size,
             radius,
             c: color,
-            font: load_font(content),
+            font: load_font_by_glyph(content),
             content: content.to_string(),
         }
     }
