@@ -24,12 +24,12 @@ pub struct Config {
     /// Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
     #[clap(long, short, default_value = "#000")]
     pub background: String,
+    /// Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+    #[clap(long, short, default_value = "#FFF")]
+    pub foreground_color: String,
     /// Icons for Volume, mute, very low, mid, hight
     #[clap(long, short, default_value = "")]
     pub volume_icon: String,
-    /// Icon Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
-    #[clap(long, short, default_value = "#FFFFFF")]
-    pub icon_color: String,
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]

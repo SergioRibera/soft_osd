@@ -30,7 +30,7 @@ pub struct MainApp {
 
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
-        let icon_color = config.icon_color.to_color();
+        let icon_color = config.foreground_color.to_color();
         let volume_icons = config.volume_icon.chars().map(|v| v).collect::<Vec<_>>();
 
         let background = Background::new(&config, ());

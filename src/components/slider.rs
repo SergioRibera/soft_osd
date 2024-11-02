@@ -76,7 +76,7 @@ impl Component for Slider {
         let radius = config.radius as f32; // padding of widget
         let size = config.width as f32 - (radius * 4.4); // size of slidebar
         let y = config.height as f32 / 2.0 - (rounded * 2.0); // position of slidebar
-        let c = config.icon_color.to_color();
+        let c = config.foreground_color.to_color();
         let bg = config.background.to_color();
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
         let bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
