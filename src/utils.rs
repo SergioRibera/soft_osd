@@ -31,3 +31,23 @@ pub fn load_font_by_glyph(content: char) -> Font {
         .load()
         .expect("Cannot load font")
 }
+
+pub fn load_font(content: &str) -> Font {
+    let families = content
+        .split(',')
+        .map(|family| match family {
+            "serif" => FamilyName::Serif,
+            "sans-serif" => FamilyName::SansSerif,
+            "monospace" => FamilyName::Monospace,
+            "cursive" => FamilyName::Cursive,
+            "fantasy" => FamilyName::Fantasy,
+            _ => FamilyName::Title(family.to_string()),
+        })
+        .collect::<Vec<_>>();
+
+    SystemSource::new()
+        .select_best_match(&families, &Default::default())
+        .unwrap_or_else(|_| panic!("Cannot found Font Family: {content}"))
+        .load()
+        .expect("Cannot load font")
+}
