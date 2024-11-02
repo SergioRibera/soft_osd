@@ -16,7 +16,7 @@ pub struct Slider {
 
 impl Slider {
     pub fn change_value(&mut self, value: f32) {
-        self.value = value;
+        self.value = value.max(0.036);
     }
 
     pub fn draw_slide(&self, x: f32, y: f32, slider_width: f32) -> Path {
@@ -80,6 +80,7 @@ impl Component for Slider {
         let bg = config.background.to_color();
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
         let bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
+        let value = value.max(0.036);
 
         Self {
             y,
@@ -95,7 +96,7 @@ impl Component for Slider {
     fn draw(&self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let x = self.radius * 2.4;
         let y = self.y * progress;
-        let slider_width = self.size * self.value * progress;
+        let slider_width = self.size * self.value;
 
         // Fondo del slider
         let bg = self.draw_slide(x, y, self.size);
