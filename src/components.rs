@@ -23,5 +23,5 @@ pub trait Component: Sized {
     ///
     /// # Argumentos
     /// * `ctx` - Contexto de dibujo de Raqote
-    fn draw(&self, ctx: &mut DrawTarget, progress: f32);
+    fn draw(&mut self, ctx: &mut DrawTarget, progress: f32);
 }

@@ -93,7 +93,7 @@ impl Component for Slider {
         }
     }
 
-    fn draw(&self, ctx: &mut raqote::DrawTarget, progress: f32) {
+    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let x = self.radius * 2.4;
         let y = self.y * progress;
         let slider_width = self.size * self.value;

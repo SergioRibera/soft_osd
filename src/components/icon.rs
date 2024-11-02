@@ -38,7 +38,7 @@ impl Component for Icon {
         }
     }
 
-    fn draw(&self, ctx: &mut raqote::DrawTarget, progress: f32) {
+    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let alpha = (self.c.a as f32 * (progress.powf(2.3))).min(255.0) as u8;
         ctx.draw_text(
             &self.font,

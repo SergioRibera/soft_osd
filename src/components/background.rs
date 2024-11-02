@@ -31,7 +31,7 @@ impl Component for Background {
         }
     }
 
-    fn draw(&self, ctx: &mut raqote::DrawTarget, progress: f32) {
+    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let or = self.radius; // Origin radius
         let rp = or * progress; // Radius progress
         let (start_height, animated_height) = if self.position == OsdPosition::Bottom {
