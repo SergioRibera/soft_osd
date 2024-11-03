@@ -23,12 +23,6 @@ in
       fontconfig.dev
       libxkbcommon.dev
       wayland
-      libxkbcommon
-      xorg.libxcb
-      xorg.libX11
-      xorg.libXcursor
-      xorg.libXrandr
-      xorg.libXi
     ];
 
     # Base args, need for build all crate artifacts and caching this for late builds
