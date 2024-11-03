@@ -5,10 +5,10 @@ use crate::utils::{lighten_color, ToColor};
 use super::Component;
 
 pub struct Slider {
+    x: f32,
     y: f32,
     size: f32,
     value: f32,
-    radius: f32,
     rounded: f32,
     c: SolidSource,
     bg: SolidSource,
@@ -19,7 +19,8 @@ impl Slider {
         self.value = value.max(0.036);
     }
 
-    pub fn draw_slide(&self, x: f32, y: f32, slider_width: f32) -> Path {
+    pub fn draw_slide(&self, y: f32, slider_width: f32) -> Path {
+        let x = self.x;
         let mut pb_fg = PathBuilder::new();
 
         pb_fg.move_to(x + self.rounded, y);
@@ -69,13 +70,16 @@ impl Slider {
 }
 
 impl Component for Slider {
-    type Args = f32;
+    type Args = (f32, f32);
 
-    fn new(config: &crate::config::Config, value: Self::Args) -> Self {
+    fn new(
+        config: &crate::config::Config,
+        (x, y): (Option<f32>, Option<f32>),
+        (value, size_mul): Self::Args,
+    ) -> Self {
         let rounded = config.height as f32 * 0.05; // size of rounded border
         let radius = config.radius as f32; // padding of widget
-        let size = config.width as f32 - (radius * 4.4); // size of slidebar
-        let y = config.height as f32 / 2.0 - (rounded * 2.0); // position of slidebar
+        let size = config.width as f32 - (radius * size_mul); // size of slidebar
         let c = config.foreground_color.to_color();
         let bg = config.background.to_color();
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
@@ -83,23 +87,23 @@ impl Component for Slider {
         let value = value.max(0.036);
 
         Self {
-            y,
             c,
             bg,
             size,
             value,
-            radius,
             rounded,
+            x: x.unwrap_or_else(|| radius * 2.4),
+            y: y.map(|y| y - (rounded * 2.0))
+                .unwrap_or_else(|| config.height as f32 / 2.0 - (rounded * 2.0)),
         }
     }
 
     fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
-        let x = self.radius * 2.4;
         let y = self.y * progress;
         let slider_width = self.size * self.value;
 
         // Fondo del slider
-        let bg = self.draw_slide(x, y, self.size);
+        let bg = self.draw_slide(y, self.size);
         ctx.fill(
             &bg,
             &Source::Solid(raqote::SolidSource::from_unpremultiplied_argb(
@@ -112,7 +116,7 @@ impl Component for Slider {
         );
 
         // Barra de progreso del slider
-        let fg = self.draw_slide(x, y, slider_width);
+        let fg = self.draw_slide(y, slider_width);
         ctx.fill(
             &fg,
             &Source::Solid(raqote::SolidSource::from_unpremultiplied_argb(

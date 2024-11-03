@@ -17,7 +17,7 @@ pub trait Component: Sized {
     type Args;
 
     /// Inicializa el componente con una configuración
-    fn new(config: &Config, args: Self::Args) -> Self;
+    fn new(config: &Config, pos: (Option<f32>, Option<f32>), args: Self::Args) -> Self;
 
     /// Renderiza el componente en el contexto de dibujo
     ///

@@ -32,8 +32,11 @@ impl From<Config> for MainApp {
         let fg_color = config.foreground_color.to_color();
         let animation_duration = config.animation_duration;
         let show_duration = config.show_duration + animation_duration;
+        let radius = config.radius as f32;
+        let half_y = config.height as f32 / 2.0;
+        let mut safe_left = (radius * 2.0) - 20.0;
 
-        let background = Background::new(&config, ());
+        let background = Background::new(&config, (None, None), ());
         let mut slider = None;
         let mut icon = None;
         let mut title = None;
@@ -47,23 +50,42 @@ impl From<Config> for MainApp {
                 description: d,
                 font,
             } => {
+                let mut has_desc = false;
+                let mut max_size_text = 3.7;
                 if let Some(i) = i {
-                    icon.replace(Icon::new(&config, (fg_color.clone(), *i)));
+                    icon.replace(Icon::new(
+                        &config,
+                        (Some(safe_left), Some(half_y)),
+                        (fg_color.clone(), *i),
+                    ));
+                    safe_left += 30.0;
+                    max_size_text = 4.0;
+                }
+                if let Some(d) = d {
+                    has_desc = true;
+                    description.replace(Text::new(
+                        &config,
+                        (Some(safe_left), Some(50.0)),
+                        (0.15, max_size_text, font.clone(), fg_color, d.clone()),
+                    ));
                 }
                 title.replace(Text::new(
                     &config,
-                    (30.0, 0.2, font.clone(), fg_color, t.clone()),
+                    (Some(safe_left), Some(if has_desc { 30.0 } else { half_y })),
+                    (0.15, max_size_text, font.clone(), fg_color, t.clone()),
                 ));
-                if let Some(d) = d {
-                    description.replace(Text::new(
-                        &config,
-                        (50.0, 0.15, font.clone(), fg_color, d.clone()),
-                    ));
-                }
             }
             OsdType::Slider { value, icon: i } => {
-                icon.replace(Icon::new(&config, (fg_color.clone(), *i)));
-                slider.replace(Slider::new(&config, *value));
+                icon.replace(Icon::new(
+                    &config,
+                    (Some(safe_left), Some(half_y)),
+                    (fg_color.clone(), *i),
+                ));
+                slider.replace(Slider::new(
+                    &config,
+                    (Some(safe_left + 40.0), Some(half_y)),
+                    (*value, 4.1),
+                ));
             }
         }
 

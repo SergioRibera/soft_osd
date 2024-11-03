@@ -6,9 +6,9 @@ use crate::utils::load_font_by_glyph;
 use super::Component;
 
 pub struct Icon {
+    x: f32,
     y: f32,
     size: f32,
-    radius: f32,
     font: Font,
     content: String,
     c: SolidSource,
@@ -23,18 +23,20 @@ impl Icon {
 impl Component for Icon {
     type Args = (SolidSource, char);
 
-    fn new(config: &crate::config::Config, (color, content): Self::Args) -> Self {
-        let radius = config.radius as f32;
+    fn new(
+        config: &crate::config::Config,
+        (x, y): (Option<f32>, Option<f32>),
+        (color, content): Self::Args,
+    ) -> Self {
         let size = config.height as f32 * 0.2;
-        let y = config.height as f32 / 2.0;
 
         Self {
-            y,
             size,
-            radius,
             c: color,
-            font: load_font_by_glyph(content),
+            x: x.unwrap_or_default(),
+            y: y.unwrap_or_default(),
             content: content.to_string(),
+            font: load_font_by_glyph(content),
         }
     }
 
@@ -44,7 +46,7 @@ impl Component for Icon {
             &self.font,
             self.size,
             &self.content,
-            Point::new(self.radius + (self.radius - 10.0), self.y * progress),
+            Point::new(self.x, self.y * progress),
             &Source::Solid(raqote::SolidSource::from_unpremultiplied_argb(
                 alpha, self.c.r, self.c.g, self.c.b,
             )),

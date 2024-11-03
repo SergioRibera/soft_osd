@@ -16,7 +16,7 @@ pub struct Background {
 impl Component for Background {
     type Args = ();
 
-    fn new(config: &Config, _: Self::Args) -> Self {
+    fn new(config: &Config, _: (Option<f32>, Option<f32>), _: Self::Args) -> Self {
         let position = config.position;
         let color = Source::Solid(config.background.to_color());
         let radius = config.radius as f32;

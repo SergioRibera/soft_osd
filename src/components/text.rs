@@ -6,10 +6,10 @@ use super::Component;
 use crate::utils::load_font;
 
 pub struct Text {
+    x: f32,
     y: f32,
     size: f32,
     font: Font,
-    radius: f32,
     max_width: f32,
     c: SolidSource,
     content: String,
@@ -42,25 +42,26 @@ impl Component for Text {
 
     fn new(
         config: &crate::config::Config,
-        (y, size_mul, font, color, content): Self::Args,
+        (x, y): (Option<f32>, Option<f32>),
+        (size_mul, max_size, font, color, content): Self::Args,
     ) -> Self {
         let radius = config.radius as f32;
         let size = config.height as f32 * size_mul;
         let font = load_font(&font);
-        let max_width = config.width as f32 - (radius * 3.7);
+        let max_width = config.width as f32 - (radius * max_size);
         let (is_overflow, text_width) = calcule_content(&font, max_width, size, &content);
 
         Self {
-            y,
             font,
             size,
-            radius,
             content,
             c: color,
             max_width,
             is_overflow,
             text_width,
             scroll_x: 0.0,
+            x: x.unwrap_or((radius * 2.0) - 10.0),
+            y: y.map(|y| y - (size / 2.0)).unwrap_or(0.0),
             scrolling_left: true,
             last_update: Instant::now(),
         }
@@ -68,8 +69,6 @@ impl Component for Text {
 
     fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let mut pb = PathBuilder::new();
-        let x = self.radius + (self.radius - 10.0);
-        let y = self.y * progress;
 
         if self.is_overflow {
             let scroll_speed = 30.0;
@@ -96,7 +95,7 @@ impl Component for Text {
 
         let alpha = (self.c.a as f32 * (progress.powf(2.3))).min(255.0) as u8;
         pb.rect(
-            x,
+            self.x,
             (self.y - self.size) * progress,
             self.max_width,
             self.size + 10.0,
@@ -109,7 +108,7 @@ impl Component for Text {
             &self.font,
             self.size,
             &self.content,
-            Point::new(x - self.scroll_x, y),
+            Point::new(self.x - self.scroll_x, self.y * progress),
             &Source::Solid(SolidSource::from_unpremultiplied_argb(
                 alpha, self.c.r, self.c.g, self.c.b,
             )),
