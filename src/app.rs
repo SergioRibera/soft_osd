@@ -2,8 +2,8 @@ use std::time::Instant;
 
 use raqote::*;
 
-use crate::components::{Background, Component, Icon, Slider};
-use crate::config::Config;
+use crate::components::{Background, Component, Icon, Slider, Text};
+use crate::config::{Config, OsdType};
 use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> {
@@ -11,13 +11,12 @@ pub trait App: From<Config> {
 }
 
 pub struct MainApp {
-    // Icons
-    volume_icons: Vec<char>,
-
     // Components
-    icon: Icon,
+    icon: Option<Icon>,
     background: Background,
-    slider: Slider,
+    slider: Option<Slider>,
+    title: Option<Text>,
+    description: Option<Text>,
 
     // Flow control
     time: Instant,
@@ -30,28 +29,50 @@ pub struct MainApp {
 
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
-        let icon_color = config.foreground_color.to_color();
-        let volume_icons = config.volume_icon.chars().map(|v| v).collect::<Vec<_>>();
-
-        let background = Background::new(&config, ());
-        let slider = Slider::new(&config, 0.5);
-        let icon = Icon::new(
-            &config,
-            (
-                icon_color,
-                *volume_icons.get(0).expect("Cannot get volume icons"),
-            ),
-        );
-
+        let fg_color = config.foreground_color.to_color();
         let animation_duration = config.animation_duration;
         let show_duration = config.show_duration + animation_duration;
 
+        let background = Background::new(&config, ());
+        let mut slider = None;
+        let mut icon = None;
+        let mut title = None;
+        let mut description = None;
+
+        match &config.command {
+            OsdType::Notification {
+                icon: i,
+                image: _,
+                title: t,
+                description: d,
+                font,
+            } => {
+                if let Some(i) = i {
+                    icon.replace(Icon::new(&config, (fg_color.clone(), *i)));
+                }
+                title.replace(Text::new(
+                    &config,
+                    (30.0, 0.2, font.clone(), fg_color, t.clone()),
+                ));
+                if let Some(d) = d {
+                    description.replace(Text::new(
+                        &config,
+                        (50.0, 0.15, font.clone(), fg_color, d.clone()),
+                    ));
+                }
+            }
+            OsdType::Slider { value, icon: i } => {
+                icon.replace(Icon::new(&config, (fg_color.clone(), *i)));
+                slider.replace(Slider::new(&config, *value));
+            }
+        }
+
         Self {
             icon,
+            title,
             slider,
             background,
-
-            volume_icons,
+            description,
 
             show_duration,
             is_exiting: false,
@@ -85,8 +106,18 @@ impl App for MainApp {
         };
 
         self.background.draw(ctx, progress);
-        self.slider.draw(ctx, progress);
-        self.icon.draw(ctx, progress);
+        if let Some(slider) = self.slider.as_mut() {
+            slider.draw(ctx, progress);
+        }
+        if let Some(icon) = self.icon.as_mut() {
+            icon.draw(ctx, progress);
+        }
+        if let Some(title) = self.title.as_mut() {
+            title.draw(ctx, progress);
+        }
+        if let Some(description) = self.description.as_mut() {
+            description.draw(ctx, progress);
+        }
 
         if self.is_exiting && self.animation_progress >= 1.0 {
             *exit = true;

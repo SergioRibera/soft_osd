@@ -1,6 +1,15 @@
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 
-#[derive(Debug, Default, Clone, PartialEq, Parser)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]
+pub enum OsdPosition {
+    #[default]
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+
+#[derive(Debug, Clone, PartialEq, Parser)]
 #[clap(author, version)]
 pub struct Config {
     /// The Position into Screen
@@ -27,19 +36,36 @@ pub struct Config {
     /// Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
     #[clap(long, short = 'c', default_value = "#FFF")]
     pub foreground_color: String,
-    /// Icons for Volume, mute, very low, mid, hight
-    #[clap(long, short, default_value = "")]
-    pub volume_icon: String,
-    /// Font for text in notifications mode, support: serif, sans-serif, monospace, cursive, fantasy or explicit name of font
-    #[clap(long, short, default_value = "serif")]
-    pub font: String,
+
+    #[clap(subcommand)]
+    pub command: OsdType,
 }
 
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]
-pub enum OsdPosition {
-    #[default]
-    Top,
-    Left,
-    Right,
-    Bottom,
+#[derive(Subcommand, Debug, Clone, PartialEq)]
+pub enum OsdType {
+    Notification {
+        /// Icons for notification
+        #[clap(long, short)]
+        icon: Option<char>,
+        /// Image for notification
+        #[clap(long, short = 'm')]
+        image: Option<String>,
+        /// Title to show
+        #[clap(long, short)]
+        title: String,
+        /// Description to show
+        #[clap(long, short)]
+        description: Option<String>,
+        /// Font for text in notifications mode, support: serif, sans-serif, monospace, cursive, fantasy or explicit name of font
+        #[clap(long, short, default_value = "sans-serif")]
+        font: String,
+    },
+    Slider {
+        /// Value for slider, from 0.0 to 1.0
+        #[clap(long, short)]
+        value: f32,
+        /// Icons for slider
+        #[clap(long, short, default_value = "󰂭")]
+        icon: char,
+    },
 }

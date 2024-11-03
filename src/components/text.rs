@@ -38,12 +38,15 @@ fn calcule_content(font: &Font, max_width: f32, point_size: f32, content: &str) 
 }
 
 impl Component for Text {
-    type Args = (f32, f32, SolidSource, String);
+    type Args = (f32, f32, String, SolidSource, String);
 
-    fn new(config: &crate::config::Config, (y, size_mul, color, content): Self::Args) -> Self {
+    fn new(
+        config: &crate::config::Config,
+        (y, size_mul, font, color, content): Self::Args,
+    ) -> Self {
         let radius = config.radius as f32;
         let size = config.height as f32 * size_mul;
-        let font = load_font(&config.font);
+        let font = load_font(&font);
         let max_width = config.width as f32 - (radius * 3.7);
         let (is_overflow, text_width) = calcule_content(&font, max_width, size, &content);
 
