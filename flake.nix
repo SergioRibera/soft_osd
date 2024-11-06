@@ -33,13 +33,8 @@
         inherit crane fenix;
       };
       # nixosModules
-      nixosModules = {
-        default = import ./nix/nixos-module.nix {
-          inherit crane fenix;
-        };
-        home-manager = import ./nix/hm-module.nix {
-          inherit crane fenix;
-        };
+      nixosModules.default = import ./nix/nixos-module.nix {
+        inherit crane fenix;
       };
     }));
 }
