@@ -10,31 +10,36 @@
     nixpkgs,
     flake-utils,
     ...
-  } @ inputs:
-  # Iterate over Arm, x86 for MacOs 🍎 and Linux 🐧
-    flake-utils.lib.eachSystem (flake-utils.lib.defaultSystems) (
+  } @ inputs: let
+      fenix = inputs.fenix.packages;
+    in
+    # Iterate over Arm, x86 for MacOs 🍎 and Linux 🐧
+    (flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
         crane = inputs.crane.mkLib pkgs;
-        fenix = inputs.fenix.packages;
-        appBundle = import ./nix {
-          inherit system pkgs crane fenix;
+        sssBundle = import ./nix {
+          inherit pkgs system crane fenix;
         };
       in {
-        inherit (appBundle) apps packages devShells;
-        # Overlays
-        overlays.default = import ./nix/overlay.nix {
-          inherit pkgs crane fenix;
-        };
-        # nixosModules
-        nixosModules = {
-          default = import ./nix/nixos-module.nix {
-            inherit pkgs crane fenix;
-          };
-          home-manager = import ./nix/hm-module.nix {
-            inherit pkgs crane fenix;
-          };
-        };
+        inherit (sssBundle) apps packages devShells;
       }
-    );
+    )) // (flake-utils.lib.eachDefaultSystemPassThrough (system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+        crane = inputs.crane.mkLib pkgs;
+      in {
+      # Overlays
+      overlays.default = import ./nix/overlay.nix {
+        inherit crane fenix;
+      };
+      # nixosModules
+      nixosModules = {
+        default = import ./nix/nixos-module.nix {
+          inherit crane fenix;
+        };
+        home-manager = import ./nix/hm-module.nix {
+          inherit crane fenix;
+        };
+      };
+    }));
 }

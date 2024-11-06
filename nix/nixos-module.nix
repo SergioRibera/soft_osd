@@ -1,6 +1,5 @@
 {
   crane,
-  cranix,
   fenix,
 }: {
   config,
@@ -9,17 +8,19 @@
   ...
 }:
 with lib; let
-  simplemoji = import ./. {
-    inherit crane cranix fenix pkgs lib;
+  sosd = import ./. {
+    inherit crane fenix pkgs lib;
     system = pkgs.system;
   };
-  cfg = config.programs.simplemoji;
+  cfg = config.programs.sosd;
 in {
-  options.programs.simplemoji = {
-    enable = mkEnableOption "cli to take simplemoji";
+  options.programs.sosd = {
+    enable = mkEnableOption "Enable Soft OSD";
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = [simplemoji.packages.default];
+    environment.systemPackages = [sosd.packages.default];
+    boot.initrd.systemd.dbus.enable = true;
+    services.dbus.packages = [sosd.packages.default];
   };
 }
