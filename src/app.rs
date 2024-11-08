@@ -9,7 +9,7 @@ use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
     fn update(&mut self, _: AppMessage) {}
-    fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget);
+    fn draw(&mut self, exit: &mut bool, ctx: &mut DrawTarget);
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -142,7 +142,7 @@ impl App for MainApp {
             }
         }
     }
-    fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget) {
+    fn draw(&mut self, exit: &mut bool, ctx: &mut DrawTarget) {
         let delta = self.time.elapsed().as_secs_f32();
         self.time = Instant::now();
 
