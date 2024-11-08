@@ -20,5 +20,7 @@ codegen-units = 1
 clap = { version = "4.5.20", features = ["derive"] }
 font-kit = "0.14.2"
 raqote = { version = "0.8.5", default-features = false, features = ["text"] }
+serde = { version = "1.0.214", features = ["derive"] }
 smithay-client-toolkit = "0.19.2"
 wayland-client = "0.31.7"
+zbus = "5.1.0"

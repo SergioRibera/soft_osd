@@ -1,14 +1,15 @@
 use clap::Parser;
 
-use self::app::MainApp;
-use self::config::Config;
-use self::window::Window;
-
 mod app;
 mod components;
 mod config;
+mod ipc;
 mod utils;
 mod window;
+
+use app::MainApp;
+use config::Config;
+use window::Window;
 
 fn main() {
     let config = Config::parse();

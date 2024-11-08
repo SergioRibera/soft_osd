@@ -31,6 +31,18 @@ in
         || (craneLib.filterCargoSources path type);
     };
 
+    dbusPkg = stdenv.mkDerivation {
+      inherit src;
+      name = "dbus-needed-files";
+      outputs = [ "out" ];
+      installPhase = ''
+        mkdir -p $out/share/dbus-1/system.d
+
+        cp $src/resources/rs.sergioribera.sosd.conf \
+          $out/share/dbus-1/system.d/rs.sergioribera.sosd.conf
+      '';
+    };
+
     # Base args, need for build all crate artifacts and caching this for late builds
     commonArgs = {
       doCheck = false;
@@ -39,19 +51,12 @@ in
         ++ lib.optionals stdenv.buildPlatform.isDarwin [
           pkgs.libiconv
         ];
-      outputs = [ "out" ];
       runtimeDependencies = with pkgs;
         lib.optionals stdenv.isLinux [
           wayland
           libxkbcommon
         ];
 
-      postInstall = ''
-        mkdir -p $out/share/dbus-1/system.d
-
-        cp ${src}/resources/rs.sergioribera.sosd.conf \
-          $out/share/dbus-1/system.d/rs.sergioribera.sosd.conf
-      '';
       inherit src buildInputs;
     };
 
@@ -60,9 +65,16 @@ in
 
     # Build packages and `nix run` apps
     appPkg = rec {
-      pkg = craneLib.buildPackage (commonArgs // {
-        cargoArtifacts = appDeps;
-      });
+      pkg = pkgs.buildEnv {
+        name = "sosd";
+        pathsToLink = [ "/share" "/bin" ];
+        paths = [
+          dbusPkg
+          (craneLib.buildPackage (commonArgs // {
+              cargoArtifacts = appDeps;
+          }))
+        ];
+      };
       app = {
         type = "app";
         program = "${pkg}${pkg.passthru.exePath or "/bin/${pkg.pname or pkg.name}"}";

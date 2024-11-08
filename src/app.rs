@@ -1,13 +1,21 @@
 use std::time::Instant;
 
 use raqote::*;
+use serde::{Deserialize, Serialize};
 
 use crate::components::{Background, Component, Icon, Slider, Text};
 use crate::config::{Config, OsdType};
 use crate::utils::{ease_out_cubic, ToColor};
 
-pub trait App: From<Config> {
+pub trait App: From<Config> + Sized + Sync + Send {
+    fn update(&mut self, _: AppMessage) {}
     fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget);
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum AppMessage {
+    Slider(char, f32),
+    Notification(char, String, Option<String>),
 }
 
 pub struct MainApp {
@@ -26,6 +34,9 @@ pub struct MainApp {
     animation_progress: f32,
     animation_duration: f32,
 }
+
+unsafe impl Send for MainApp {}
+unsafe impl Sync for MainApp {}
 
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
@@ -84,9 +95,10 @@ impl From<Config> for MainApp {
                 slider.replace(Slider::new(
                     &config,
                     (Some(safe_left + 40.0), Some(half_y)),
-                    (*value, 4.1),
+                    (*value / 100.0, 4.1),
                 ));
             }
+            _ => {}
         }
 
         Self {
@@ -107,6 +119,29 @@ impl From<Config> for MainApp {
 }
 
 impl App for MainApp {
+    fn update(&mut self, msg: AppMessage) {
+        match msg {
+            AppMessage::Slider(i, value) => {
+                if let Some(icon) = self.icon.as_mut() {
+                    icon.change_content(i)
+                }
+                if let Some(slider) = self.slider.as_mut() {
+                    slider.change_value(value)
+                }
+            }
+            AppMessage::Notification(i, _, _) => {
+                if let Some(icon) = self.icon.as_mut() {
+                    icon.change_content(i)
+                }
+                // if let Some(title) = self.title.as_mut() {
+                //     title.change_value(title_content)
+                // }
+                // if let Some(desc) = self.description.as_mut() {
+                //     desc.change_value(description)
+                // }
+            }
+        }
+    }
     fn run(&mut self, exit: &mut bool, ctx: &mut DrawTarget) {
         let delta = self.time.elapsed().as_secs_f32();
         self.time = Instant::now();

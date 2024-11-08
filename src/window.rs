@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use raqote::DrawTarget;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -18,18 +20,18 @@ use smithay_client_toolkit::{
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_output, wl_seat, wl_shm, wl_surface},
+    protocol::{wl_output, wl_region::WlRegion, wl_seat, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
 
 use crate::{
-    app::App,
+    app::{App, AppMessage},
     config::{Config, OsdPosition},
 };
 
-pub(crate) trait AppTy: App + From<Config> {}
+pub(crate) trait AppTy: App + From<Config> + Sized + Send + Sync {}
 
-impl<T: App + From<Config>> AppTy for T {}
+impl<T: App + From<Config> + Sized + Send + Sync> AppTy for T {}
 
 pub struct Window<T: AppTy> {
     registry_state: RegistryState,
@@ -46,7 +48,7 @@ pub struct Window<T: AppTy> {
     layer: LayerSurface,
 
     context: DrawTarget,
-    render: T,
+    render: Arc<Mutex<T>>,
 }
 
 fn set_pos(
@@ -77,6 +79,7 @@ impl<T: AppTy + 'static> Window<T> {
             position,
             width,
             height,
+            command: ref command,
             ..
         } = &config;
         let (width, height) = match position {
@@ -100,10 +103,14 @@ impl<T: AppTy + 'static> Window<T> {
             Some("simple_layer"),
             None,
         );
+        // let region = compositor.wl_compositor().create_region(&qh, ());
+        // region.add(0, 0, 0, 0);
+        // layer.set_input_region(Some(&region));
 
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
         let context = DrawTarget::new(width as i32, height as i32);
+        let render = Arc::new(Mutex::new(T::from(config.clone())));
         let mut window = Self {
             exit: false,
             shm,
@@ -114,7 +121,7 @@ impl<T: AppTy + 'static> Window<T> {
             screen: None,
             layer: layer.clone(),
             first_configure: true,
-            render: T::from(config),
+            render: render.clone(),
             registry_state: RegistryState::new(&globals),
             seat_state: SeatState::new(&globals, &qh),
             output_state: OutputState::new(&globals, &qh),
@@ -131,11 +138,41 @@ impl<T: AppTy + 'static> Window<T> {
         set_pos((width, height), &layer, position, window.screen.as_ref());
         layer.commit();
 
-        loop {
-            event_queue.blocking_dispatch(&mut window).unwrap();
-            if window.exit {
-                break;
+        let server = crate::ipc::MainAppIPC { app: render };
+        // let ipc_conn = zbus::blocking::Connection::session().unwrap();
+        let ipc_conn = zbus::blocking::connection::Builder::session()
+            .unwrap()
+            .name(crate::ipc::APP_ID)
+            .unwrap()
+            .serve_at("/rs/sergioribera/sosd", server)
+            .unwrap()
+            .build();
+
+        match ipc_conn {
+            Ok(_ipc_conn) => {
+                // No hay otra instancia, crea el servicio
+                println!("Servicio D-Bus registrado, esperando mensajes...");
+                loop {
+                    event_queue.blocking_dispatch(&mut window).unwrap();
+                    if window.exit {
+                        break;
+                    }
+                }
             }
+            Err(zbus::Error::NameTaken) => {
+                let ipc_conn = zbus::blocking::Connection::session().unwrap();
+                let ipc = crate::ipc::MainAppIPCSingletoneProxyBlocking::new(&ipc_conn).unwrap();
+                println!("Sending slider command");
+                match command {
+                    crate::config::OsdType::Slider { value, icon } => {
+                        ipc.slider(icon.to_string(), *value as i32).unwrap()
+                    }
+                    _ => {}
+                }
+
+                println!("Mensaje enviado a la instancia existente");
+            }
+            e => eprintln!("Error al conectar al bus: {e:?}"),
         }
     }
 
@@ -161,7 +198,10 @@ impl<T: AppTy + 'static> Window<T> {
             b: 0,
             a: 0,
         });
-        self.render.run(&mut self.exit, &mut self.context);
+        self.render
+            .lock()
+            .unwrap()
+            .run(&mut self.exit, &mut self.context);
         assert_eq!(canvas.len(), self.context.get_data_u8().len());
         canvas.copy_from_slice(self.context.get_data_u8());
 
