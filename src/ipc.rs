@@ -1,48 +1,44 @@
-use std::error::Error;
+mod sosd;
+
 use std::sync::{Arc, Mutex};
 
-use zbus::{fdo, interface, proxy, Connection};
+pub use sosd::*;
+use zbus::blocking::connection::Builder;
+use zbus::blocking::Connection;
 
-use crate::app::{AppMessage, MainApp};
+use crate::config::OsdType;
 use crate::window::AppTy;
 
 pub const APP_ID: &str = "rs.sergioribera.sosd";
+pub const APP_PATH: &str = "/rs/sergioribera/sosd";
 
-pub struct MainAppIPC<T: AppTy> {
-    pub(crate) app: Arc<Mutex<T>>,
-}
+pub fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) {
+    let server = MainAppIPC(app);
+    let ipc_conn = Builder::session()
+        .unwrap()
+        .name(APP_ID)
+        .unwrap()
+        .serve_at(APP_PATH, server)
+        .unwrap()
+        .build();
 
-// Define la interfaz D-Bus
-#[interface(name = "rs.sergioribera.sosd")]
-impl<T: AppTy + 'static> MainAppIPC<T> {
-    fn slider(&self, i: String, v: i32) -> fdo::Result<()> {
-        println!("Received Slider: {v}");
-        let v = (v as f32) / 100.0;
-        println!("New Value Slider: {v}");
-        self.app
-            .lock()
-            .unwrap()
-            .update(AppMessage::Slider(i.chars().next().unwrap(), v));
-        Ok(())
+    if let Err(zbus::Error::NameTaken) = ipc_conn {
+        let ipc_conn = zbus::blocking::Connection::session().unwrap();
+        let ipc = MainAppIPCSingletoneProxyBlocking::new(&ipc_conn).unwrap();
+        println!("Sending slider command");
+        match command {
+            OsdType::Slider { value, icon } => ipc.slider(icon.to_string(), *value as i32).unwrap(),
+            _ => {}
+        }
+
+        println!("Mensaje enviado a la instancia existente");
+        std::process::exit(0);
     }
-    fn notification(&self, i: String, t: String, d: String) -> fdo::Result<()> {
-        println!("Received Notification");
-        self.app.lock().unwrap().update(AppMessage::Notification(
-            i.chars().next().unwrap(),
-            t,
-            Some(d),
-        ));
-        Ok(())
-    }
-}
 
-// Proxy para enviar mensajes a la instancia existente
-#[proxy(
-    interface = "rs.sergioribera.sosd",
-    default_service = "rs.sergioribera.sosd",
-    default_path = "/rs/sergioribera/sosd"
-)]
-pub trait MainAppIPCSingletone {
-    fn slider(&self, i: String, v: i32) -> fdo::Result<()>;
-    fn notification(&self, i: String, t: String, d: String) -> fdo::Result<()>;
+    if let Err(ref e) = ipc_conn {
+        eprintln!("Error al conectar al bus: {e:?}");
+    }
+
+    println!("Servicio D-Bus registrado, esperando mensajes...");
+    loop {}
 }

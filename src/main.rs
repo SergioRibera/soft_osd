@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use clap::Parser;
 
 mod app;
@@ -13,5 +15,12 @@ use window::Window;
 
 fn main() {
     let config = Config::parse();
-    Window::<MainApp>::run(config)
+    let app = Arc::new(Mutex::new(MainApp::from(config.clone())));
+
+    {
+        let app = app.clone();
+        let command = config.command.clone();
+        std::thread::spawn(move || ipc::connect(&command, app));
+    }
+    Window::run(app, config)
 }

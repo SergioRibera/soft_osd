@@ -95,7 +95,7 @@ impl From<Config> for MainApp {
                 slider.replace(Slider::new(
                     &config,
                     (Some(safe_left + 40.0), Some(half_y)),
-                    (*value / 100.0, 4.1),
+                    (*value as f32 / 100.0, 4.1),
                 ));
             }
             _ => {}

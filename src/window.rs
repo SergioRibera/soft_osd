@@ -25,13 +25,13 @@ use wayland_client::{
 };
 
 use crate::{
-    app::{App, AppMessage},
+    app::App,
     config::{Config, OsdPosition},
 };
 
-pub(crate) trait AppTy: App + From<Config> + Sized + Send + Sync {}
+pub(crate) trait AppTy: App + Sized + Send + Sync {}
 
-impl<T: App + From<Config> + Sized + Send + Sync> AppTy for T {}
+impl<T: App + Sized + Send + Sync> AppTy for T {}
 
 pub struct Window<T: AppTy> {
     registry_state: RegistryState,
@@ -74,12 +74,11 @@ fn set_pos(
 }
 
 impl<T: AppTy + 'static> Window<T> {
-    pub fn run(config: Config) {
+    pub fn run(render: Arc<Mutex<T>>, config: Config) {
         let &Config {
             position,
             width,
             height,
-            command: ref command,
             ..
         } = &config;
         let (width, height) = match position {
@@ -110,18 +109,17 @@ impl<T: AppTy + 'static> Window<T> {
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
         let context = DrawTarget::new(width as i32, height as i32);
-        let render = Arc::new(Mutex::new(T::from(config.clone())));
         let mut window = Self {
             exit: false,
             shm,
             pool,
             width,
             height,
+            render,
             context,
             screen: None,
             layer: layer.clone(),
             first_configure: true,
-            render: render.clone(),
             registry_state: RegistryState::new(&globals),
             seat_state: SeatState::new(&globals, &qh),
             output_state: OutputState::new(&globals, &qh),
@@ -138,41 +136,11 @@ impl<T: AppTy + 'static> Window<T> {
         set_pos((width, height), &layer, position, window.screen.as_ref());
         layer.commit();
 
-        let server = crate::ipc::MainAppIPC { app: render };
-        // let ipc_conn = zbus::blocking::Connection::session().unwrap();
-        let ipc_conn = zbus::blocking::connection::Builder::session()
-            .unwrap()
-            .name(crate::ipc::APP_ID)
-            .unwrap()
-            .serve_at("/rs/sergioribera/sosd", server)
-            .unwrap()
-            .build();
-
-        match ipc_conn {
-            Ok(_ipc_conn) => {
-                // No hay otra instancia, crea el servicio
-                println!("Servicio D-Bus registrado, esperando mensajes...");
-                loop {
-                    event_queue.blocking_dispatch(&mut window).unwrap();
-                    if window.exit {
-                        break;
-                    }
-                }
+        loop {
+            event_queue.blocking_dispatch(&mut window).unwrap();
+            if window.exit {
+                break;
             }
-            Err(zbus::Error::NameTaken) => {
-                let ipc_conn = zbus::blocking::Connection::session().unwrap();
-                let ipc = crate::ipc::MainAppIPCSingletoneProxyBlocking::new(&ipc_conn).unwrap();
-                println!("Sending slider command");
-                match command {
-                    crate::config::OsdType::Slider { value, icon } => {
-                        ipc.slider(icon.to_string(), *value as i32).unwrap()
-                    }
-                    _ => {}
-                }
-
-                println!("Mensaje enviado a la instancia existente");
-            }
-            e => eprintln!("Error al conectar al bus: {e:?}"),
         }
     }
 

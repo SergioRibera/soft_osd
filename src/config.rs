@@ -62,9 +62,9 @@ pub enum OsdType {
         font: String,
     },
     Slider {
-        /// Value for slider, from 0.0 to 1.0
+        /// Value for slider, from 0 to 100
         #[clap(long, short)]
-        value: f32,
+        value: i32,
         /// Icons for slider
         #[clap(long, short, default_value = "󰂭")]
         icon: char,

@@ -16,7 +16,7 @@ pub struct Slider {
 
 impl Slider {
     pub fn change_value(&mut self, value: f32) {
-        self.value = value.max(0.036);
+        self.value = value.min(1.0).max(0.036);
     }
 
     pub fn draw_slide(&self, y: f32, slider_width: f32) -> Path {
