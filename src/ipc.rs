@@ -60,6 +60,6 @@ pub fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) {
 
     if let OsdType::Daemon = command {
         println!("Servicio D-Bus registrado, esperando mensajes...");
-        loop {}
+        std::thread::park()
     }
 }
