@@ -37,6 +37,17 @@ fn calcule_content(font: &Font, max_width: f32, point_size: f32, content: &str) 
     (is_overflow, size)
 }
 
+impl Text {
+    pub fn change_value(&mut self, content: String) {
+        let (is_overflow, text_width) =
+            calcule_content(&self.font, self.max_width, self.size, &content);
+        self.scrolling_left = true;
+        self.is_overflow = is_overflow;
+        self.text_width = text_width;
+        self.content = content;
+    }
+}
+
 impl Component for Text {
     type Args = (f32, f32, String, SolidSource, String);
 

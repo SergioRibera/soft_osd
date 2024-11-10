@@ -14,8 +14,9 @@ pub trait App: From<Config> + Sized + Sync + Send {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum AppMessage {
+    Close,
     Slider(char, f32),
-    Notification(char, String, Option<String>),
+    Notification(Option<char>, String, Option<String>),
 }
 
 pub struct MainApp {
@@ -129,17 +130,18 @@ impl App for MainApp {
                     slider.change_value(value)
                 }
             }
-            AppMessage::Notification(i, _, _) => {
-                if let Some(icon) = self.icon.as_mut() {
+            AppMessage::Notification(i, title_content, description) => {
+                if let (Some(icon), Some(i)) = (self.icon.as_mut(), i) {
                     icon.change_content(i)
                 }
-                // if let Some(title) = self.title.as_mut() {
-                //     title.change_value(title_content)
-                // }
-                // if let Some(desc) = self.description.as_mut() {
-                //     desc.change_value(description)
-                // }
+                if let Some(title) = self.title.as_mut() {
+                    title.change_value(title_content)
+                }
+                if let (Some(desc), Some(description)) = (self.description.as_mut(), description) {
+                    desc.change_value(description)
+                }
             }
+            AppMessage::Close => {}
         }
     }
     fn draw(&mut self, exit: &mut bool, ctx: &mut DrawTarget) {
