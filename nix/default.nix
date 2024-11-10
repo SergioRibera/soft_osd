@@ -37,10 +37,14 @@ in
       outputs = [ "out" ];
       installPhase = ''
         mkdir -p $out/share/dbus-1/system.d
+        mkdir -p $out/lib/systemd/system
+
+        cp "${src}/resources/sosd.service" "$out/lib/systemd/system"
 
         cp $src/resources/rs.sergioribera.sosd.conf \
           $out/share/dbus-1/system.d/rs.sergioribera.sosd.conf
       '';
+
     };
 
     # Base args, need for build all crate artifacts and caching this for late builds
@@ -67,7 +71,7 @@ in
     appPkg = rec {
       pkg = pkgs.buildEnv {
         name = "sosd";
-        pathsToLink = [ "/share" "/bin" ];
+        pathsToLink = [ "/lib" "/bin" ];
         paths = [
           dbusPkg
           (craneLib.buildPackage (commonArgs // {
