@@ -39,7 +39,6 @@ pub struct Window<T: AppTy> {
     output_state: OutputState,
     shm: Shm,
 
-    exit: bool,
     first_configure: bool,
     pool: SlotPool,
     width: u32,
@@ -110,7 +109,6 @@ impl<T: AppTy + 'static> Window<T> {
             .expect("Failed to create pool");
         let context = DrawTarget::new(width as i32, height as i32);
         let mut window = Self {
-            exit: false,
             shm,
             pool,
             width,
@@ -138,9 +136,6 @@ impl<T: AppTy + 'static> Window<T> {
 
         loop {
             event_queue.blocking_dispatch(&mut window).unwrap();
-            if window.exit {
-                break;
-            }
         }
     }
 
@@ -166,10 +161,7 @@ impl<T: AppTy + 'static> Window<T> {
             b: 0,
             a: 0,
         });
-        self.render
-            .lock()
-            .unwrap()
-            .draw(&mut self.exit, &mut self.context);
+        self.render.lock().unwrap().draw(&mut self.context);
         assert_eq!(canvas.len(), self.context.get_data_u8().len());
         canvas.copy_from_slice(self.context.get_data_u8());
 
@@ -273,7 +265,7 @@ impl<T: AppTy + 'static> OutputHandler for Window<T> {
 
 impl<T: AppTy + 'static> LayerShellHandler for Window<T> {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        self.exit = true;
+        // NOTE: we not need close (?
     }
 
     fn configure(
@@ -341,7 +333,7 @@ impl<T: AppTy + 'static> WindowHandler for Window<T> {
         _qh: &QueueHandle<Self>,
         _window: &window::Window,
     ) {
-        self.exit = true;
+        // NOTE: we not need close (?
     }
 
     fn configure(

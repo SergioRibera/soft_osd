@@ -9,7 +9,7 @@ use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
     fn update(&mut self, _: AppMessage) {}
-    fn draw(&mut self, exit: &mut bool, ctx: &mut DrawTarget);
+    fn draw(&mut self, ctx: &mut DrawTarget);
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,7 +27,18 @@ pub struct MainApp {
     title: Option<Text>,
     description: Option<Text>,
 
+    // Variable Needed to create Components
+    radius: f32,
+    half_y: f32,
+    config: Config,
+    safe_left: f32,
+    fg_color: SolidSource,
+
+    // changed_content: bool,
+    // content_anim_progress: f32,
+
     // Flow control
+    show: bool,
     time: Instant,
     is_exiting: bool,
     show_duration: f32,
@@ -46,69 +57,25 @@ impl From<Config> for MainApp {
         let show_duration = config.show_duration + animation_duration;
         let radius = config.radius as f32;
         let half_y = config.height as f32 / 2.0;
-        let mut safe_left = (radius * 2.0) - 20.0;
+        let safe_left = (radius * 2.0) - 20.0;
 
         let background = Background::new(&config, (None, None), ());
-        let mut slider = None;
-        let mut icon = None;
-        let mut title = None;
-        let mut description = None;
-
-        match &config.command {
-            OsdType::Notification {
-                icon: i,
-                image: _,
-                title: t,
-                description: d,
-                font,
-            } => {
-                let mut has_desc = false;
-                let mut max_size_text = 3.7;
-                if let Some(i) = i {
-                    icon.replace(Icon::new(
-                        &config,
-                        (Some(safe_left), Some(half_y)),
-                        (fg_color.clone(), *i),
-                    ));
-                    safe_left += 30.0;
-                    max_size_text = 4.0;
-                }
-                if let Some(d) = d {
-                    has_desc = true;
-                    description.replace(Text::new(
-                        &config,
-                        (Some(safe_left), Some(50.0)),
-                        (0.15, max_size_text, font.clone(), fg_color, d.clone()),
-                    ));
-                }
-                title.replace(Text::new(
-                    &config,
-                    (Some(safe_left), Some(if has_desc { 30.0 } else { half_y })),
-                    (0.15, max_size_text, font.clone(), fg_color, t.clone()),
-                ));
-            }
-            OsdType::Slider { value, icon: i } => {
-                icon.replace(Icon::new(
-                    &config,
-                    (Some(safe_left), Some(half_y)),
-                    (fg_color.clone(), *i),
-                ));
-                slider.replace(Slider::new(
-                    &config,
-                    (Some(safe_left + 40.0), Some(half_y)),
-                    (*value as f32 / 100.0, 4.1),
-                ));
-            }
-            _ => {}
-        }
 
         Self {
-            icon,
-            title,
-            slider,
-            background,
-            description,
+            config,
+            half_y,
+            radius,
+            fg_color,
+            safe_left,
 
+            background,
+            icon: None,
+            title: None,
+            slider: None,
+            description: None,
+            // changed_content: false,
+            // content_anim_progress: 0.0,
+            show: false,
             show_duration,
             is_exiting: false,
             animation_duration,
@@ -121,35 +88,97 @@ impl From<Config> for MainApp {
 
 impl App for MainApp {
     fn update(&mut self, msg: AppMessage) {
+        let mut safe_left = self.safe_left;
+        // if self.show {
+        //     self.icon = None;
+        //     self.title = None;
+        //     self.slider = None;
+        //     self.description = None;
+        //     self.show_duration += self.config.show_duration;
+        // }
         match msg {
             AppMessage::Slider(i, value) => {
-                if let Some(icon) = self.icon.as_mut() {
-                    icon.change_content(i)
+                println!("Updating Slider");
+                if i != '\x00' {
+                    self.icon.replace(Icon::new(
+                        &self.config,
+                        (Some(safe_left), Some(self.half_y)),
+                        (self.fg_color.clone(), i),
+                    ));
+                    safe_left += 40.0;
                 }
-                if let Some(slider) = self.slider.as_mut() {
-                    slider.change_value(value)
-                }
+                self.slider.replace(Slider::new(
+                    &self.config,
+                    (Some(safe_left), Some(self.half_y)),
+                    (value as f32 / 100.0, 4.1),
+                ));
+                self.time = Instant::now();
+                self.start_time = Instant::now();
+                self.show = true;
+                // self.changed_content = true;
             }
             AppMessage::Notification(i, title_content, description) => {
-                if let (Some(icon), Some(i)) = (self.icon.as_mut(), i) {
-                    icon.change_content(i)
+                println!("Updating Notification");
+                let mut has_desc = false;
+                let mut max_size_text = 3.7;
+                if let Some(i) = i {
+                    self.icon.replace(Icon::new(
+                        &self.config,
+                        (Some(safe_left), Some(self.half_y)),
+                        (self.fg_color.clone(), i),
+                    ));
+                    safe_left += 30.0;
+                    max_size_text = 4.0;
                 }
-                if let Some(title) = self.title.as_mut() {
-                    title.change_value(title_content)
+                if let Some(description) = description {
+                    if !description.is_empty() {
+                        has_desc = true;
+                        self.description.replace(Text::new(
+                            &self.config,
+                            (Some(safe_left), Some(50.0)),
+                            (
+                                0.15,
+                                max_size_text,
+                                "monospace".to_owned(),
+                                self.fg_color,
+                                description,
+                            ),
+                        ));
+                    }
                 }
-                if let (Some(desc), Some(description)) = (self.description.as_mut(), description) {
-                    desc.change_value(description)
-                }
+                self.title.replace(Text::new(
+                    &self.config,
+                    (
+                        Some(safe_left),
+                        Some(if has_desc { 30.0 } else { self.half_y }),
+                    ),
+                    (
+                        0.15,
+                        max_size_text,
+                        "monospace".to_owned(),
+                        self.fg_color,
+                        title_content,
+                    ),
+                ));
+                self.time = Instant::now();
+                self.start_time = Instant::now();
+                self.show = true;
+                // self.changed_content = true;
             }
-            AppMessage::Close => {}
+            AppMessage::Close => {
+                self.is_exiting = true;
+            }
         }
     }
-    fn draw(&mut self, exit: &mut bool, ctx: &mut DrawTarget) {
+    fn draw(&mut self, ctx: &mut DrawTarget) {
+        if !self.show {
+            return;
+        }
+
         let delta = self.time.elapsed().as_secs_f32();
         self.time = Instant::now();
 
         if !self.is_exiting && self.start_time.elapsed().as_secs_f32() >= self.show_duration {
-            println!("Exiting: {:?}", self.start_time.elapsed().as_secs_f32());
             self.is_exiting = true;
             self.animation_progress = 0.0;
         }
@@ -164,6 +193,19 @@ impl App for MainApp {
             ease_out_cubic(self.animation_progress)
         };
 
+        if self.is_exiting && self.animation_progress >= 1.0
+        // || self.is_exiting && self.content_anim_progress >= 1.0
+        {
+            self.is_exiting = false;
+            self.animation_progress = 0.0;
+            self.show = false;
+
+            self.icon = None;
+            self.title = None;
+            self.slider = None;
+            self.description = None;
+        }
+
         self.background.draw(ctx, progress);
         if let Some(slider) = self.slider.as_mut() {
             slider.draw(ctx, progress);
@@ -176,10 +218,6 @@ impl App for MainApp {
         }
         if let Some(description) = self.description.as_mut() {
             description.draw(ctx, progress);
-        }
-
-        if self.is_exiting && self.animation_progress >= 1.0 {
-            *exit = true;
         }
     }
 }

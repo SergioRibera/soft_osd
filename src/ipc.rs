@@ -42,7 +42,7 @@ pub fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) {
                 font: _,
             } => ipc
                 .notification(
-                    icon.unwrap_or_default().to_string(),
+                    icon.unwrap_or_else(|| '\x00').to_string(),
                     title.clone(),
                     description.clone().unwrap_or_default(),
                 )
