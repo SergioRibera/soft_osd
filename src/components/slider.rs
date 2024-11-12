@@ -84,7 +84,7 @@ impl Component for Slider {
         let bg = config.background.to_color();
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
         let bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
-        let value = (value / 100.0).max(0.036);
+        let value = (value / 100.0).min(1.0).max(0.036);
 
         Self {
             c,

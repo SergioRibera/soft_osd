@@ -11,7 +11,7 @@ pub struct MainAppIPC<T: AppTy>(pub Arc<Mutex<T>>);
 #[interface(name = "rs.sergioribera.sosd")]
 impl<T: AppTy + 'static> MainAppIPC<T> {
     fn slider(&self, i: String, v: i32) -> Result<()> {
-        let v = (v as f32) / 100.0;
+        let v = v as f32;
         self.0
             .lock()
             .unwrap()
