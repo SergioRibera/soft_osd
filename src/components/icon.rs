@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use font_kit::font::Font;
 use raqote::{Point, SolidSource, Source};
 
@@ -9,10 +11,13 @@ pub struct Icon {
     x: f32,
     y: f32,
     size: f32,
-    font: Font,
+    font: Arc<Font>,
     content: String,
     c: SolidSource,
 }
+
+unsafe impl Send for Icon {}
+unsafe impl Sync for Icon {}
 
 impl Icon {
     pub fn change_content(&mut self, new_content: char) {
@@ -36,14 +41,14 @@ impl Component for Icon {
             x: x.unwrap_or_default(),
             y: y.unwrap_or_default(),
             content: content.to_string(),
-            font: load_font_by_glyph(content),
+            font: Arc::new(load_font_by_glyph(content)),
         }
     }
 
     fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let alpha = (self.c.a as f32 * (progress.powf(2.3))).min(255.0) as u8;
         ctx.draw_text(
-            &self.font,
+            self.font.as_ref(),
             self.size,
             &self.content,
             Point::new(self.x, self.y * progress),

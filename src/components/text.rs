@@ -1,5 +1,6 @@
 use font_kit::font::Font;
 use raqote::{PathBuilder, Point, SolidSource, Source};
+use std::sync::Arc;
 use std::time::Instant;
 
 use super::Component;
@@ -9,7 +10,7 @@ pub struct Text {
     x: f32,
     y: f32,
     size: f32,
-    font: Font,
+    font: Arc<Font>,
     max_width: f32,
     c: SolidSource,
     content: String,
@@ -19,6 +20,9 @@ pub struct Text {
     scrolling_left: bool,
     last_update: Instant,
 }
+
+unsafe impl Send for Text {}
+unsafe impl Sync for Text {}
 
 fn calcule_content(font: &Font, max_width: f32, point_size: f32, content: &str) -> (bool, f32) {
     let calcule_glyph = |id: u32| font.advance(id).unwrap().x() * point_size / 24.0 / 96.0;
@@ -58,9 +62,9 @@ impl Component for Text {
     ) -> Self {
         let radius = config.radius as f32;
         let size = config.height as f32 * size_mul;
-        let font = load_font(&font);
+        let font = Arc::new(load_font(&font));
         let max_width = config.width as f32 - (radius * max_size);
-        let (is_overflow, text_width) = calcule_content(&font, max_width, size, &content);
+        let (is_overflow, text_width) = calcule_content(font.as_ref(), max_width, size, &content);
 
         Self {
             font,
@@ -116,7 +120,7 @@ impl Component for Text {
         ctx.push_clip(&clip_path);
 
         ctx.draw_text(
-            &self.font,
+            self.font.as_ref(),
             self.size,
             &self.content,
             Point::new(self.x - self.scroll_x, self.y * progress),
