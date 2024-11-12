@@ -252,32 +252,6 @@ impl App for MainApp {
                     (Some(safe_left), Some(self.half_y)),
                     (value, 4.1),
                 ));
-
-                // Manejar estados de animación
-                match self.window_state {
-                    WindowState::Hidden => {
-                        // Si la ventana está oculta, iniciamos ambas animaciones
-                        self.window_state = WindowState::Entering {
-                            start_time: current_time,
-                            progress: 0.0,
-                        };
-                        self.content_state = ContentState::Entering {
-                            start_time: current_time,
-                            progress: 0.0,
-                        };
-                    }
-                    _ => {
-                        // Si la ventana ya está visible, solo reiniciamos el contenido
-                        self.content_state = ContentState::Entering {
-                            start_time: current_time,
-                            progress: 0.0,
-                        };
-                        // Reiniciamos el tiempo de showing para la ventana
-                        self.window_state = WindowState::Showing {
-                            start_time: current_time,
-                        };
-                    }
-                }
             }
 
             AppMessage::Notification(i, title_content, description) => {
@@ -327,29 +301,6 @@ impl App for MainApp {
                         title_content,
                     ),
                 ));
-
-                // Usar la misma lógica de manejo de estados que en Slider
-                match self.window_state {
-                    WindowState::Hidden => {
-                        self.window_state = WindowState::Entering {
-                            start_time: current_time,
-                            progress: 0.0,
-                        };
-                        self.content_state = ContentState::Entering {
-                            start_time: current_time,
-                            progress: 0.0,
-                        };
-                    }
-                    _ => {
-                        self.content_state = ContentState::Entering {
-                            start_time: current_time,
-                            progress: 0.0,
-                        };
-                        self.window_state = WindowState::Showing {
-                            start_time: current_time,
-                        };
-                    }
-                }
             }
 
             AppMessage::Close => {
@@ -360,6 +311,32 @@ impl App for MainApp {
                 self.content_state = ContentState::Exiting {
                     start_time: current_time,
                     progress: 0.0,
+                };
+                return;
+            }
+        }
+        // Manejar estados de animación
+        match self.window_state {
+            WindowState::Hidden => {
+                // Si la ventana está oculta, iniciamos ambas animaciones
+                self.window_state = WindowState::Entering {
+                    start_time: current_time,
+                    progress: 0.0,
+                };
+                self.content_state = ContentState::Entering {
+                    start_time: current_time,
+                    progress: 0.0,
+                };
+            }
+            _ => {
+                // Si la ventana ya está visible, solo reiniciamos el contenido
+                self.content_state = ContentState::Entering {
+                    start_time: current_time,
+                    progress: 0.0,
+                };
+                // Reiniciamos el tiempo de showing para la ventana
+                self.window_state = WindowState::Showing {
+                    start_time: current_time,
                 };
             }
         }
