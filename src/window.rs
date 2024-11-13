@@ -49,6 +49,8 @@ pub struct Window<T: AppTy> {
     height: u32,
     screen: Option<(i32, i32)>,
     layer: LayerSurface,
+    region: WlRegion,
+    active_input: bool,
 
     context: DrawTarget,
     render: Arc<Mutex<T>>,
@@ -105,6 +107,9 @@ impl<T: AppTy + 'static> Window<T> {
             Some("simple_layer"),
             None,
         );
+        let region = compositor.wl_compositor().create_region(&qh, ());
+        region.add(0, 0, 0, 0);
+        layer.set_input_region(Some(&region));
 
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
@@ -115,8 +120,10 @@ impl<T: AppTy + 'static> Window<T> {
             width,
             height,
             render,
+            region,
             context,
             screen: None,
+            active_input: false,
             layer: layer.clone(),
             first_configure: true,
             registry_state: RegistryState::new(&globals),
@@ -168,6 +175,17 @@ impl<T: AppTy + 'static> Window<T> {
         });
         if render.show() {
             render.draw(&mut self.context);
+            // enable capture inputs
+            if !self.active_input {
+                self.active_input = true;
+                self.layer.set_input_region(None);
+            }
+        } else {
+            // disable capture inputs
+            if self.active_input {
+                self.active_input = false;
+                self.layer.set_input_region(Some(&self.region));
+            }
         }
         assert_eq!(canvas.len(), self.context.get_data_u8().len());
         canvas.copy_from_slice(self.context.get_data_u8());
@@ -369,6 +387,19 @@ impl<T: AppTy + 'static> ProvidesRegistryState for Window<T> {
 
     fn registry(&mut self) -> &mut RegistryState {
         &mut self.registry_state
+    }
+}
+
+impl<T: AppTy + 'static> Dispatch<WlRegion, ()> for Window<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &WlRegion,
+        event: <WlRegion as wayland_client::Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        println!("Region Event: {event:?}");
     }
 }
 
