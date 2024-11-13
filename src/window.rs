@@ -20,8 +20,12 @@ use smithay_client_toolkit::{
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_output, wl_region::WlRegion, wl_seat, wl_shm, wl_surface},
-    Connection, QueueHandle,
+    protocol::{
+        wl_output,
+        wl_region::{self, WlRegion},
+        wl_seat, wl_shm, wl_surface,
+    },
+    Connection, Dispatch, QueueHandle,
 };
 
 use crate::{
@@ -101,9 +105,6 @@ impl<T: AppTy + 'static> Window<T> {
             Some("simple_layer"),
             None,
         );
-        // let region = compositor.wl_compositor().create_region(&qh, ());
-        // region.add(0, 0, 0, 0);
-        // layer.set_input_region(Some(&region));
 
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
@@ -140,6 +141,10 @@ impl<T: AppTy + 'static> Window<T> {
     }
 
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
+        let Ok(mut render) = self.render.lock() else {
+            return;
+        };
+
         let width = self.width;
         let height = self.height;
         let stride = self.width as i32 * 4;
@@ -161,7 +166,9 @@ impl<T: AppTy + 'static> Window<T> {
             b: 0,
             a: 0,
         });
-        self.render.lock().unwrap().draw(&mut self.context);
+        if render.show() {
+            render.draw(&mut self.context);
+        }
         assert_eq!(canvas.len(), self.context.get_data_u8().len());
         canvas.copy_from_slice(self.context.get_data_u8());
 

@@ -8,6 +8,7 @@ use crate::config::{Config, OsdType};
 use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
+    fn show(&self) -> bool;
     fn update(&mut self, _: AppMessage) {}
     fn draw(&mut self, ctx: &mut DrawTarget);
 }
@@ -229,6 +230,16 @@ impl MainApp {
 }
 
 impl App for MainApp {
+    fn show(&self) -> bool {
+        if matches!(self.window_state, WindowState::Hidden)
+            && matches!(self.content_state, ContentState::Idle)
+        {
+            return false;
+        }
+
+        !matches!(self.window_state, WindowState::Hidden)
+            || !matches!(self.content_state, ContentState::Idle)
+    }
     fn update(&mut self, msg: AppMessage) {
         let mut safe_left = self.safe_left;
         let current_time = Instant::now();
