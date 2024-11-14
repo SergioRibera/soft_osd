@@ -244,6 +244,34 @@ impl App for MainApp {
         let mut safe_left = self.safe_left;
         let current_time = Instant::now();
 
+        // Manejar estados de animación
+        match self.window_state {
+            WindowState::Hidden => {
+                // Si la ventana está oculta, iniciamos ambas animaciones
+                self.window_state = WindowState::Entering {
+                    start_time: current_time,
+                    progress: 0.0,
+                };
+                self.content_state = ContentState::Entering {
+                    start_time: current_time,
+                    progress: 0.0,
+                };
+            }
+            _ => {
+                // Si la ventana ya está visible, solo reiniciamos el contenido
+                if self.slider.is_none() {
+                    self.content_state = ContentState::Entering {
+                        start_time: current_time,
+                        progress: 0.0,
+                    };
+                }
+                // Reiniciamos el tiempo de showing para la ventana
+                self.window_state = WindowState::Showing {
+                    start_time: current_time,
+                };
+            }
+        }
+
         match msg {
             AppMessage::Slider(i, value) => {
                 self.clear_content();
@@ -258,11 +286,15 @@ impl App for MainApp {
                     safe_left += 40.0;
                 }
 
-                self.slider.replace(Slider::new(
-                    &self.config,
-                    (Some(safe_left), Some(self.half_y)),
-                    (value, 4.1),
-                ));
+                if let Some(slider) = self.slider.as_mut() {
+                    slider.change_value(value);
+                } else {
+                    self.slider.replace(Slider::new(
+                        &self.config,
+                        (Some(safe_left), Some(self.half_y)),
+                        (value, 4.1),
+                    ));
+                }
             }
 
             AppMessage::Notification(i, title_content, description) => {
@@ -324,31 +356,6 @@ impl App for MainApp {
                     progress: 0.0,
                 };
                 return;
-            }
-        }
-        // Manejar estados de animación
-        match self.window_state {
-            WindowState::Hidden => {
-                // Si la ventana está oculta, iniciamos ambas animaciones
-                self.window_state = WindowState::Entering {
-                    start_time: current_time,
-                    progress: 0.0,
-                };
-                self.content_state = ContentState::Entering {
-                    start_time: current_time,
-                    progress: 0.0,
-                };
-            }
-            _ => {
-                // Si la ventana ya está visible, solo reiniciamos el contenido
-                self.content_state = ContentState::Entering {
-                    start_time: current_time,
-                    progress: 0.0,
-                };
-                // Reiniciamos el tiempo de showing para la ventana
-                self.window_state = WindowState::Showing {
-                    start_time: current_time,
-                };
             }
         }
     }
