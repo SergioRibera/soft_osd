@@ -1,14 +1,17 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use raqote::DrawTarget;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
     delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_seat,
-    delegate_shm, delegate_xdg_shell, delegate_xdg_window,
+    delegate_shm, delegate_touch, delegate_xdg_shell, delegate_xdg_window,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
-    seat::{Capability, SeatHandler, SeatState},
+    seat::{touch::TouchHandler, Capability, SeatHandler, SeatState},
     shell::{
         wlr_layer::{
             Anchor, Layer, LayerShell, LayerShellHandler, LayerSurface, LayerSurfaceConfigure,
@@ -29,7 +32,7 @@ use wayland_client::{
 };
 
 use crate::{
-    app::App,
+    app::{App, AppMessage},
     config::{Config, OsdPosition},
 };
 
@@ -49,11 +52,15 @@ pub struct Window<T: AppTy> {
     height: u32,
     screen: Option<(i32, i32)>,
     layer: LayerSurface,
-    region: WlRegion,
-    active_input: bool,
 
     context: DrawTarget,
     render: Arc<Mutex<T>>,
+
+    // Inputs
+    region: WlRegion,
+    active_input: bool,
+    // Variables para rastrear el gesto
+    touches: HashMap<i32, (Option<(f64, f64)>, Option<(f64, f64)>)>, // (start_position, end_position)
 }
 
 fn set_pos(
@@ -126,6 +133,7 @@ impl<T: AppTy + 'static> Window<T> {
             active_input: false,
             layer: layer.clone(),
             first_configure: true,
+            touches: HashMap::new(),
             registry_state: RegistryState::new(&globals),
             seat_state: SeatState::new(&globals, &qh),
             output_state: OutputState::new(&globals, &qh),
@@ -403,6 +411,103 @@ impl<T: AppTy + 'static> Dispatch<WlRegion, ()> for Window<T> {
     }
 }
 
+// TODO: test implementation and flow
+impl<T: AppTy + 'static> TouchHandler for Window<T> {
+    fn down(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _touch: &wayland_client::protocol::wl_touch::WlTouch,
+        _serial: u32,
+        _time: u32,
+        _surface: wl_surface::WlSurface,
+        id: i32,
+        position: (f64, f64),
+    ) {
+        // Registrar posición inicial del toque
+        self.touches.insert(id, (Some(position), None));
+        println!("Touch down at position: {position:?} with ID: {id}");
+    }
+
+    fn up(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _touch: &wayland_client::protocol::wl_touch::WlTouch,
+        _serial: u32,
+        _time: u32,
+        id: i32,
+    ) {
+        // Verificar si el toque está en el mapa
+        if let Some((Some(start), Some(end))) = self.touches.get(&id) {
+            let delta_y = start.1 - end.1; // Diferencia vertical
+            let delta_x = (start.0 - end.0).abs(); // Diferencia horizontal
+
+            if delta_y > 50.0 && delta_x < 30.0 {
+                // Gesto hacia arriba detectado
+                println!("Swipe up detected for ID: {id}! DeltaY: {delta_y}");
+                self.render.lock().unwrap().update(AppMessage::Close);
+            } else {
+                println!("Not a swipe up for ID: {id}: DeltaY: {delta_y}, DeltaX: {delta_x}");
+            }
+        }
+
+        // Remover el toque del mapa
+        self.touches.remove(&id);
+    }
+
+    fn motion(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _touch: &wayland_client::protocol::wl_touch::WlTouch,
+        _time: u32,
+        id: i32,
+        position: (f64, f64),
+    ) {
+        // Actualizar la posición final del toque
+        if let Some((_, end)) = self.touches.get_mut(&id) {
+            *end = Some(position);
+        }
+        println!("Touch motion at position: {position:?} for ID: {id}");
+    }
+
+    fn shape(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _touch: &wayland_client::protocol::wl_touch::WlTouch,
+        _id: i32,
+        _major: f64,
+        _minor: f64,
+    ) {
+        // Este método no requiere cambios para esta lógica
+    }
+
+    fn orientation(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _touch: &wayland_client::protocol::wl_touch::WlTouch,
+        _id: i32,
+        orientation: f64,
+    ) {
+        println!("Orientation: {orientation}");
+    }
+
+    fn cancel(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _touch: &wayland_client::protocol::wl_touch::WlTouch,
+    ) {
+        println!("Cancel Touch");
+
+        // Limpiar todos los toques en caso de cancelación
+        self.touches.clear();
+    }
+}
+
 delegate_compositor!(@<T: AppTy + 'static> Window<T>);
 delegate_output!(@<T: AppTy + 'static> Window<T>);
 delegate_shm!(@<T: AppTy + 'static> Window<T>);
@@ -411,3 +516,4 @@ delegate_layer!(@<T: AppTy + 'static> Window<T>);
 delegate_registry!(@<T: AppTy + 'static> Window<T>);
 delegate_xdg_shell!(@<T: AppTy + 'static> Window<T>);
 delegate_xdg_window!(@<T: AppTy + 'static> Window<T>);
+delegate_touch!(@<T: AppTy + 'static> Window<T>);
