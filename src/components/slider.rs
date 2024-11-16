@@ -1,5 +1,6 @@
 use raqote::{DrawOptions, Path, PathBuilder, SolidSource, Source};
 
+use crate::config::OsdPosition;
 use crate::utils::{lighten_color, ToColor};
 
 use super::Component;
@@ -12,6 +13,7 @@ pub struct Slider {
     rounded: f32,
     c: SolidSource,
     bg: SolidSource,
+    position: OsdPosition,
 }
 
 impl Slider {
@@ -77,6 +79,7 @@ impl Component for Slider {
         (x, y): (Option<f32>, Option<f32>),
         (value, size_mul): Self::Args,
     ) -> Self {
+        let position = config.position;
         let rounded = config.height as f32 * 0.05; // size of rounded border
         let radius = config.radius as f32; // padding of widget
         let size = config.width as f32 - (radius * size_mul); // size of slidebar
@@ -92,6 +95,7 @@ impl Component for Slider {
             size,
             value,
             rounded,
+            position,
             x: x.unwrap_or_else(|| radius * 2.4),
             y: y.map(|y| y - (rounded * 2.0))
                 .unwrap_or_else(|| config.height as f32 / 2.0 - (rounded * 2.0)),
@@ -99,7 +103,11 @@ impl Component for Slider {
     }
 
     fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
-        let y = self.y * progress;
+        let y = if self.position == OsdPosition::Bottom {
+            self.y + (self.y * (1.0 - progress))
+        } else {
+            self.y * progress
+        };
         let slider_width = self.size * self.value;
 
         // Fondo del slider

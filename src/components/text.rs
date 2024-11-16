@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::Component;
+use crate::config::OsdPosition;
 use crate::utils::load_font;
 
 pub struct Text {
@@ -19,6 +20,7 @@ pub struct Text {
     scroll_x: f32,
     scrolling_left: bool,
     last_update: Instant,
+    position: OsdPosition,
 }
 
 unsafe impl Send for Text {}
@@ -60,6 +62,7 @@ impl Component for Text {
         (x, y): (Option<f32>, Option<f32>),
         (size_mul, max_size, font, color, content): Self::Args,
     ) -> Self {
+        let position = config.position;
         let radius = config.radius as f32;
         let size = config.height as f32 * size_mul;
         let font = Arc::new(load_font(&font));
@@ -71,6 +74,7 @@ impl Component for Text {
             size,
             content,
             c: color,
+            position,
             max_width,
             is_overflow,
             text_width,
@@ -84,6 +88,11 @@ impl Component for Text {
 
     fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
         let mut pb = PathBuilder::new();
+        let y = if self.position == OsdPosition::Bottom {
+            self.y + (self.y * (1.0 - progress))
+        } else {
+            self.y * progress
+        };
 
         if self.is_overflow {
             let scroll_speed = 30.0;
@@ -109,12 +118,7 @@ impl Component for Text {
         }
 
         let alpha = (self.c.a as f32 * (progress.powf(2.3))).min(255.0) as u8;
-        pb.rect(
-            self.x,
-            (self.y - self.size) * progress,
-            self.max_width,
-            self.size + 10.0,
-        );
+        pb.rect(self.x, y - self.size, self.max_width, self.size + 10.0);
         let clip_path = pb.finish();
 
         ctx.push_clip(&clip_path);
@@ -123,7 +127,7 @@ impl Component for Text {
             self.font.as_ref(),
             self.size,
             &self.content,
-            Point::new(self.x - self.scroll_x, self.y * progress),
+            Point::new(self.x - self.scroll_x, y),
             &Source::Solid(SolidSource::from_unpremultiplied_argb(
                 alpha, self.c.r, self.c.g, self.c.b,
             )),
