@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use raqote::DrawTarget;
@@ -9,24 +10,34 @@ use smithay_client_toolkit::{
     delegate_compositor, delegate_layer, delegate_output, delegate_registry, delegate_seat,
     delegate_shm, delegate_touch, delegate_xdg_shell, delegate_xdg_window,
     output::{OutputHandler, OutputState},
+    reexports::{
+        calloop::EventLoop,
+        calloop_wayland_source::WaylandSource,
+        protocols_wlr::layer_shell::v1::client::{
+            zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
+            zwlr_layer_surface_v1::{Anchor, ZwlrLayerSurfaceV1},
+        },
+    },
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{touch::TouchHandler, Capability, SeatHandler, SeatState},
     shell::{
-        wlr_layer::{
-            Anchor, Layer, LayerShell, LayerShellHandler, LayerSurface, LayerSurfaceConfigure,
-        },
+        wlr_layer::{LayerShell, LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
         xdg::window::{self, WindowConfigure, WindowHandler},
         WaylandSurface,
     },
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
 use wayland_client::{
-    globals::registry_queue_init,
+    globals::{registry_queue_init, GlobalListContents},
     protocol::{
-        wl_output,
+        wl_buffer::WlBuffer,
+        wl_compositor::WlCompositor,
+        wl_output::{self, WlOutput},
         wl_region::{self, WlRegion},
-        wl_seat, wl_shm, wl_surface,
+        wl_registry::WlRegistry,
+        wl_seat, wl_shm,
+        wl_surface::{self, WlSurface},
     },
     Connection, Dispatch, QueueHandle,
 };
@@ -51,7 +62,7 @@ pub struct Window<T: AppTy> {
     width: u32,
     height: u32,
     screen: Option<(i32, i32)>,
-    layer: LayerSurface,
+    layers: HashMap<WlOutput, WlSurface>,
 
     context: DrawTarget,
     render: Arc<Mutex<T>>,
@@ -65,7 +76,7 @@ pub struct Window<T: AppTy> {
 
 fn set_pos(
     (w, h): (u32, u32),
-    layer: &LayerSurface,
+    layer: &ZwlrLayerSurfaceV1,
     position: OsdPosition,
     screen: Option<&(i32, i32)>,
 ) {
@@ -79,10 +90,26 @@ fn set_pos(
         OsdPosition::Bottom => ((sw as u32 / 2) - w / 2, sh as u32 - h),
     };
     println!("Screen: ({sw}, {sh}) => {position:?} ({x}, {y}, {w}, {h})");
-    layer.set_anchor(Anchor::LEFT | Anchor::TOP);
+    layer.set_layer(Layer::Top);
+    layer.set_anchor(Anchor::Left | Anchor::Top);
     layer.set_size(w as u32, h as u32);
     layer.set_margin(y as i32, 0, 0, x as i32);
-    layer.wl_surface().damage_buffer(0, 0, w as i32, h as i32);
+}
+
+#[derive(Debug)]
+struct BaseState;
+
+// so interesting, it is just need to invoke once, it just used to get the globals
+impl Dispatch<WlRegistry, GlobalListContents> for BaseState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WlRegistry,
+        _event: <WlRegistry as wayland_client::Proxy>::Event,
+        _data: &GlobalListContents,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl<T: AppTy + 'static> Window<T> {
@@ -98,25 +125,17 @@ impl<T: AppTy + 'static> Window<T> {
             OsdPosition::Left | OsdPosition::Right => (height, width),
         };
         let conn = Connection::connect_to_env().unwrap();
-        let (globals, mut event_queue) = registry_queue_init(&conn).unwrap();
+        let (globals, _) = registry_queue_init::<BaseState>(&conn).unwrap();
+        let mut event_queue = conn.new_event_queue::<Self>();
         let qh = event_queue.handle();
 
-        let compositor =
-            CompositorState::bind(&globals, &qh).expect("wl_compositor is not available");
-        let layer_shell = LayerShell::bind(&globals, &qh).expect("layer shell is not available");
+        let compositor = globals
+            .bind::<WlCompositor, _, ()>(&qh, 1..=5, ())
+            .expect("wl_compositor is not available");
         let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
-        let surface = compositor.create_surface(&qh);
 
-        let layer = layer_shell.create_layer_surface(
-            &qh,
-            surface,
-            Layer::Overlay,
-            Some("simple_layer"),
-            None,
-        );
-        let region = compositor.wl_compositor().create_region(&qh, ());
+        let region = compositor.create_region(&qh, ());
         region.add(0, 0, 0, 0);
-        layer.set_input_region(Some(&region));
 
         let pool = SlotPool::new((width as usize) * (height as usize) * 4, &shm)
             .expect("Failed to create pool");
@@ -131,8 +150,8 @@ impl<T: AppTy + 'static> Window<T> {
             context,
             screen: None,
             active_input: false,
-            layer: layer.clone(),
             first_configure: true,
+            layers: HashMap::new(),
             touches: HashMap::new(),
             registry_state: RegistryState::new(&globals),
             seat_state: SeatState::new(&globals, &qh),
@@ -140,39 +159,70 @@ impl<T: AppTy + 'static> Window<T> {
         };
 
         event_queue.roundtrip(&mut window).unwrap();
+        // event_queue.blocking_dispatch(&mut window).unwrap();
 
-        let screen = window
-            .output_state
-            .info(&window.output_state.outputs().next().unwrap());
+        for o in window.output_state.outputs() {
+            let Some(output) = window.output_state.info(&o) else {
+                continue;
+            };
+            let Some((sw, sh)) = output.logical_size else {
+                continue;
+            };
+            let wl_surface = compositor.create_surface(&qh, ());
+            let layer_shell = globals
+                .bind::<ZwlrLayerShellV1, _, ()>(&qh, 3..=4, ())
+                .unwrap();
+            let layer = layer_shell.get_layer_surface(
+                &wl_surface,
+                Some(&o),
+                Layer::Overlay,
+                "sosd".to_owned(),
+                &qh,
+                (),
+            );
+            set_pos((width, height), &layer, position, Some(&(sw, sh)));
+            wl_surface.damage(0, 0, width as i32, height as i32);
+            wl_surface.frame(&qh, wl_surface.clone());
+            wl_surface.commit();
 
-        window.screen = screen.and_then(|s| s.logical_size);
+            window.layers.insert(o, wl_surface);
+        }
 
-        set_pos((width, height), &layer, position, window.screen.as_ref());
-        layer.commit();
+        // let mut event_loop: EventLoop<Self> =
+        //     EventLoop::try_new().expect("Failed to initialize the event loop");
+
+        // WaylandSource::new(conn.clone(), event_queue)
+        //     .insert(event_loop.handle())
+        //     .expect("Failed to init wayland source");
 
         loop {
-            event_queue.blocking_dispatch(&mut window).unwrap();
+            match event_queue.blocking_dispatch(&mut window) {
+                Ok(_) => println!("Post render"),
+                Err(e) => {
+                    eprintln!("Error during dispatch: {:?}", e);
+                    // break; // O decide cómo manejar el error
+                }
+            }
+            // event_loop
+            //     .dispatch(Duration::from_millis(1), &mut window)
+            //     .unwrap();
+            // event_queue.blocking_dispatch(&mut window).unwrap();
+            println!("Post render");
         }
     }
 
     pub fn draw(&mut self, qh: &QueueHandle<Self>) {
+        println!("Pre lock render");
         let Ok(mut render) = self.render.lock() else {
+            println!("Failed lock render");
             return;
         };
 
-        let width = self.width;
-        let height = self.height;
-        let stride = self.width as i32 * 4;
-
-        let (buffer, canvas) = self
-            .pool
-            .create_buffer(
-                width as i32,
-                height as i32,
-                stride,
-                wl_shm::Format::Argb8888,
-            )
-            .expect("create buffer");
+        println!("Show");
+        let show = render.show();
+        let width = self.width as i32;
+        let height = self.height as i32;
+        let stride = width * 4;
 
         // Draw to the window:
         self.context.clear(raqote::SolidSource {
@@ -181,36 +231,59 @@ impl<T: AppTy + 'static> Window<T> {
             b: 0,
             a: 0,
         });
-        if render.show() {
+
+        if show {
+            println!("Render");
             render.draw(&mut self.context);
-            // enable capture inputs
-            if !self.active_input {
-                self.active_input = true;
-                self.layer.set_input_region(None);
-            }
-        } else {
-            // disable capture inputs
-            if self.active_input {
-                self.active_input = false;
-                self.layer.set_input_region(Some(&self.region));
-            }
+            println!("Draw");
         }
-        assert_eq!(canvas.len(), self.context.get_data_u8().len());
-        canvas.copy_from_slice(self.context.get_data_u8());
+        for (_, layer) in self.layers.iter_mut() {
+            if show {
+                if !self.active_input {
+                    println!("active input region");
+                    layer.set_input_region(None);
+                }
+                println!("Buffer");
+                let (buffer, canvas) = self
+                    .pool
+                    .create_buffer(
+                        width as i32,
+                        height as i32,
+                        stride,
+                        wl_shm::Format::Argb8888,
+                    )
+                    .expect("create buffer");
 
-        self.layer
-            .wl_surface()
-            .damage_buffer(0, 0, width as i32, height as i32);
-        // Request our next frame
-        self.layer
-            .wl_surface()
-            .frame(qh, self.layer.wl_surface().clone());
+                println!("Assert");
+                assert_eq!(canvas.len(), self.context.get_data_u8().len());
+                canvas.copy_from_slice(self.context.get_data_u8());
+                println!("Canvas");
 
-        // Attach and commit to present.
-        buffer
-            .attach_to(self.layer.wl_surface())
-            .expect("buffer attach");
-        self.layer.commit();
+                // layer.damage_buffer(0, 0, width as i32, height as i32);
+                // layer.frame(qh, layer.clone());
+
+                // Adjuntar y confirmar el buffer
+                // layer.attach(Some(buffer.wl_buffer()), 0, 0);
+                println!("Attach");
+                buffer.attach_to(layer).unwrap();
+                // buffer.attach_to(layer).expect("buffer attach");
+                println!("Damage");
+                layer.damage_buffer(0, 0, width, height);
+            } else {
+                if self.active_input {
+                    println!("disable input region");
+                    layer.set_input_region(Some(&self.region));
+                }
+            }
+            println!("Frame");
+            layer.frame(qh, layer.clone());
+            println!("Commit");
+            layer.commit();
+            println!("Post Commit");
+        }
+
+        // Actualizar el estado de captura de entradas
+        self.active_input = show;
     }
 }
 
@@ -505,6 +578,55 @@ impl<T: AppTy + 'static> TouchHandler for Window<T> {
 
         // Limpiar todos los toques en caso de cancelación
         self.touches.clear();
+    }
+}
+
+impl<T: AppTy + 'static> Dispatch<WlCompositor, ()> for Window<T> {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WlCompositor,
+        _event: <WlCompositor as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl<T: AppTy + 'static> Dispatch<WlSurface, ()> for Window<T> {
+    fn event(
+        _state: &mut Self,
+        _proxy: &WlSurface,
+        _event: <WlSurface as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+impl<T: AppTy + 'static> Dispatch<ZwlrLayerShellV1, ()> for Window<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwlrLayerShellV1,
+        event: <ZwlrLayerShellV1 as wayland_client::Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        todo!()
+    }
+}
+
+impl<T: AppTy + 'static> Dispatch<ZwlrLayerSurfaceV1, ()> for Window<T> {
+    fn event(
+        _state: &mut Self,
+        _proxy: &ZwlrLayerSurfaceV1,
+        _event: <ZwlrLayerSurfaceV1 as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
     }
 }
 
