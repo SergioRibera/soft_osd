@@ -26,30 +26,7 @@ in
     ];
     src = lib.cleanSourceWith {
       src = craneLib.path ./..;
-      filter = path: type:
-        (lib.hasInfix "/resources" path)
-        || (craneLib.filterCargoSources path type);
-    };
-
-    dbusPkg = stdenv.mkDerivation {
-      inherit src;
-      name = "dbus-needed-files";
-      outputs = [ "out" ];
-      installPhase = ''
-        # mkdir -p $out/share/dbus-1/session.d
-        mkdir -p $out/share/dbus-1/services
-        mkdir -p $out/lib/systemd/user
-
-        # cp $src/resources/org.sergioribera.sosd.conf $out/share/dbus-1/session.d
-        cp "${src}/resources/sosd.service" "$out/lib/systemd/user/sosd.service"
-        cp "${src}/resources/org.sergioribera.sosd.service" "$out/share/dbus-1/services"
-
-        substituteInPlace \
-          "$out/lib/systemd/user/sosd.service" \
-          "$out/share/dbus-1/services/org.sergioribera.sosd.service" \
-          --replace "/usr" "${appBase}"
-      '';
-
+      filter = path: type: (craneLib.filterCargoSources path type);
     };
 
     # Base args, need for build all crate artifacts and caching this for late builds
@@ -75,27 +52,11 @@ in
       cargoArtifacts = appDeps;
     }));
 
-    # Build packages and `nix run` apps
-    appPkg = rec {
-      pkg = pkgs.buildEnv {
-        name = "sosd";
-        pathsToLink = [ "/lib" "/bin" "/share" ];
-        paths = [
-          dbusPkg
-          appBase
-        ];
-      };
-      # pkg = appBase;
-      app = {
-        type = "app";
-        program = "${pkg}${pkg.passthru.exePath or "/bin/${pkg.pname or pkg.name}"}";
-      };
-    };
   in {
     # `nix run`
-    apps.default = appPkg.app;
+    apps.default = appBase;
     # `nix build`
-    packages.default = appPkg.pkg;
+    packages.default = appBase;
     # `nix develop`
     devShells.default = craneLib.devShell {
       packages = with pkgs; [
@@ -103,7 +64,6 @@ in
           pkg-config
           cargo-dist
           cargo-release
-          zbus-xmlgen
         ] ++ buildInputs;
       LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
       PKG_CONFIG_PATH = "${pkgs.fontconfig.dev}/lib/pkgconfig";
