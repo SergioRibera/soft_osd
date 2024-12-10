@@ -36,13 +36,18 @@ in
       name = "dbus-needed-files";
       outputs = [ "out" ];
       installPhase = ''
-        mkdir -p $out/share/dbus-1/system.d
-        mkdir -p $out/lib/systemd/system
+        # mkdir -p $out/share/dbus-1/session.d
+        mkdir -p $out/share/dbus-1/services
+        mkdir -p $out/lib/systemd/user
 
-        cp "${src}/resources/sosd.service" "$out/lib/systemd/system"
+        # cp $src/resources/org.sergioribera.sosd.conf $out/share/dbus-1/session.d
+        cp "${src}/resources/sosd.service" "$out/lib/systemd/user/sosd.service"
+        cp "${src}/resources/org.sergioribera.sosd.service" "$out/share/dbus-1/services"
 
-        cp $src/resources/rs.sergioribera.sosd.conf \
-          $out/share/dbus-1/system.d/rs.sergioribera.sosd.conf
+        substituteInPlace \
+          "$out/lib/systemd/user/sosd.service" \
+          "$out/share/dbus-1/services/org.sergioribera.sosd.service" \
+          --replace "/usr" "${appBase}"
       '';
 
     };
@@ -66,19 +71,21 @@ in
 
     # app artifacts
     appDeps = craneLib.buildDepsOnly commonArgs;
+    appBase = (craneLib.buildPackage (commonArgs // {
+      cargoArtifacts = appDeps;
+    }));
 
     # Build packages and `nix run` apps
     appPkg = rec {
       pkg = pkgs.buildEnv {
         name = "sosd";
-        pathsToLink = [ "/lib" "/bin" ];
+        pathsToLink = [ "/lib" "/bin" "/share" ];
         paths = [
           dbusPkg
-          (craneLib.buildPackage (commonArgs // {
-              cargoArtifacts = appDeps;
-          }))
+          appBase
         ];
       };
+      # pkg = appBase;
       app = {
         type = "app";
         program = "${pkg}${pkg.passthru.exePath or "/bin/${pkg.pname or pkg.name}"}";
@@ -96,6 +103,7 @@ in
           pkg-config
           cargo-dist
           cargo-release
+          zbus-xmlgen
         ] ++ buildInputs;
       LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
       PKG_CONFIG_PATH = "${pkgs.fontconfig.dev}/lib/pkgconfig";

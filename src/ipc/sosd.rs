@@ -10,7 +10,7 @@ pub struct MainAppIPC<T: AppTy>(pub Arc<Mutex<T>>);
 // Define la interfaz D-Bus
 #[interface(name = "rs.sergioribera.sosd")]
 impl<T: AppTy + 'static> MainAppIPC<T> {
-    fn slider(&self, i: String, v: i32) -> Result<()> {
+    async fn slider(&self, i: String, v: i32) -> Result<()> {
         let v = v as f32;
         self.0
             .lock()
@@ -18,7 +18,7 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
             .update(AppMessage::Slider(i.chars().next().unwrap(), v));
         Ok(())
     }
-    fn notification(&self, i: String, t: String, d: String) -> Result<()> {
+    async fn notification(&self, i: String, t: String, d: String) -> Result<()> {
         println!("Received Notification");
         self.0
             .lock()
@@ -35,6 +35,6 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
     default_path = "/rs/sergioribera/sosd"
 )]
 pub trait MainAppIPCSingletone {
-    fn slider(&self, i: String, v: i32) -> Result<()>;
-    fn notification(&self, i: String, t: String, d: String) -> Result<()>;
+    async fn slider(&self, i: String, v: i32) -> Result<()>;
+    async fn notification(&self, i: String, t: String, d: String) -> Result<()>;
 }

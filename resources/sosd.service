@@ -1,15 +1,14 @@
 [Unit]
 Description=Soft OSD is a beautiful OSD and Notification
 Documentation=https://github.com/SergioRibera/soft_osd
-After=graphical.target
-ConditionEnvironment=WAYLAND_DISPLAY
+PartOf=graphical-session.target
 
 [Service]
 Type=dbus
 BusName=org.freedesktop.Notifications
-ExecStart=sosd daemon
-Restart=always
-RestartSec=10
+ExecStart=/usr/bin/sosd daemon
+# ExecReload=/usr/bin/sosd reload
+Restart=on-failure
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

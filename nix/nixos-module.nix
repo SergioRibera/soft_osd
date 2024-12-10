@@ -21,7 +21,5 @@ in {
   config = mkIf cfg.enable {
     environment.systemPackages = [sosd.packages.default];
     boot.initrd.systemd.dbus.enable = true;
-    services.dbus.packages = [sosd.packages.default];
-    systemd.packages = [sosd.packages.default];
   };
 }

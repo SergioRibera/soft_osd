@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.freedesktop.Notifications
+Exec=/usr/bin/sosd daemon
+SystemdService=sosd.service

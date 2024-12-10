@@ -3,8 +3,8 @@ use std::ops::Not;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
 
-use zbus::object_server::SignalContext;
-use zbus::{fdo::Result, interface, proxy};
+use zbus::object_server::SignalEmitter;
+use zbus::{fdo::Result, interface};
 
 use crate::app::AppMessage;
 use crate::window::AppTy;
@@ -73,6 +73,7 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
         hints: HashMap<String, zbus::zvariant::Value>,
         expire_timeout: i32,
     ) -> Result<u32> {
+        println!("Notificación recibida: {app_name} - {summary} - {body}");
         // The spec says that:
         // If `replaces_id` is 0, we should create a fresh id and notification.
         // If `replaces_id` is not 0, we should create a replace the notification with that id,
@@ -127,7 +128,7 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
 
     #[zbus(signal)]
     async fn action_invoked(
-        signal_ctxt: &SignalContext<'_>,
+        signal_ctxt: &SignalEmitter<'_>,
         id: u32,
         action_key: &str,
     ) -> zbus::Result<()>;
@@ -146,7 +147,7 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
     /// 4 - Undefined/reserved reasons.
     #[zbus(signal)]
     async fn notification_closed(
-        signal_ctxt: &SignalContext<'_>,
+        signal_ctxt: &SignalEmitter<'_>,
         id: u32,
         reason: u32,
     ) -> zbus::Result<()>;

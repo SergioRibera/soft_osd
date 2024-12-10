@@ -13,14 +13,15 @@ use app::MainApp;
 use config::Config;
 use window::Window;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let config = Config::parse();
     let app = Arc::new(Mutex::new(MainApp::from(config.clone())));
 
     {
         let app = app.clone();
         let command = config.command.clone();
-        std::thread::spawn(move || ipc::connect(&command, app));
+        tokio::spawn(async move { ipc::connect(&command, app).await });
     }
     Window::run(app, config)
 }
