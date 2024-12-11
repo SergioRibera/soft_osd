@@ -105,8 +105,16 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
                 .then(|| app_icon.chars().next())
                 .flatten(),
             summary,
-            body.is_empty().not().then(|| body),
+            body.is_empty()
+                .not()
+                .then(|| body.lines().next().map(|l| l.to_owned()))
+                .flatten(),
         ));
+
+        // I don't think this is really the right thing to do but given the way it works,
+        // when more than one notification arrives it explodes because it is poisoned.
+        // So to prevent, after using it clean everything, if you think there is a better way, please do PR
+        self.0.clear_poison();
 
         Ok(id)
     }
