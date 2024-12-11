@@ -71,8 +71,9 @@ impl Slider {
     }
 }
 
-impl Component for Slider {
+impl Component<'_> for Slider {
     type Args = (f32, f32);
+    type DrawArgs = ();
 
     fn new(
         config: &crate::config::Config,
@@ -102,7 +103,7 @@ impl Component for Slider {
         }
     }
 
-    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
+    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32, _: Self::DrawArgs) {
         let y = if self.position == OsdPosition::Bottom {
             self.y + (self.y * (1.0 - progress))
         } else {

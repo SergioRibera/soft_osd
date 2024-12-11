@@ -13,7 +13,8 @@ pub use slider::Slider;
 pub use text::Text;
 
 /// Trait para componentes renderizables con ciclo de vida
-pub trait Component: Sized {
+pub trait Component<'a>: Sized + 'a {
+    type DrawArgs;
     type Args;
 
     /// Inicializa el componente con una configuración
@@ -23,5 +24,5 @@ pub trait Component: Sized {
     ///
     /// # Argumentos
     /// * `ctx` - Contexto de dibujo de Raqote
-    fn draw(&mut self, ctx: &mut DrawTarget, progress: f32);
+    fn draw(&mut self, ctx: &mut DrawTarget, progress: f32, _: Self::DrawArgs);
 }

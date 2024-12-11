@@ -1,10 +1,11 @@
 use std::time::Instant;
 
+use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
 use serde::{Deserialize, Serialize};
 
 use crate::components::{Background, Component, Icon, Slider, Text};
-use crate::config::{Config, OsdType};
+use crate::config::Config;
 use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
@@ -21,15 +22,18 @@ pub enum AppMessage {
 }
 
 pub struct MainApp {
+    fonts: FontSystem,
+    sw_cache: SwashCache,
+    title_text: Buffer,
+    description_text: Buffer,
+    icon_char: Buffer,
+
     // Components
     icon: Option<Icon>,
     background: Background,
     slider: Option<Slider>,
     title: Option<Text>,
     description: Option<Text>,
-
-    #[cfg(debug_assertions)]
-    debug: Text,
 
     // Layout properties
     radius: f32,
@@ -63,31 +67,29 @@ impl From<Config> for MainApp {
         let radius = config.radius as f32;
         let half_y = config.height as f32 / 2.0;
         let safe_left = (radius * 2.0) - 20.0;
+        let size = config.height as f32 * 0.15;
+
+        let mut fonts = FontSystem::new();
+        let metrics = Metrics::new(size, size);
+        let title_text = Buffer::new(&mut fonts, metrics);
+        let description_text = Buffer::new(&mut fonts, metrics);
+        let icon_char = Buffer::new(&mut fonts, metrics);
 
         let background = Background::new(&config, (None, None), ());
-        #[cfg(debug_assertions)]
-        let debug = Text::new(
-            &config,
-            (Some(00.0), Some(25.0)),
-            (
-                0.15,
-                3.7,
-                "monospace".to_owned(),
-                fg_color.clone(),
-                String::new(),
-            ),
-        );
 
         Self {
+            fonts,
+            icon_char,
+            title_text,
+            description_text,
+            sw_cache: SwashCache::new(),
+
             config,
             half_y,
             radius,
             fg_color,
             safe_left,
             background,
-
-            #[cfg(debug_assertions)]
-            debug,
 
             icon: None,
             title: None,
@@ -240,6 +242,7 @@ impl App for MainApp {
         !matches!(self.window_state, WindowState::Hidden)
             || !matches!(self.content_state, ContentState::Idle)
     }
+
     fn update(&mut self, msg: AppMessage) {
         let mut safe_left = self.safe_left;
         let current_time = Instant::now();
@@ -316,20 +319,30 @@ impl App for MainApp {
                 if let Some(description) = description {
                     if !description.is_empty() {
                         has_desc = true;
+                        self.description_text.set_text(
+                            &mut self.fonts,
+                            &description,
+                            Attrs::new(),
+                            cosmic_text::Shaping::Advanced,
+                        );
                         self.description.replace(Text::new(
                             &self.config,
                             (Some(safe_left), Some(50.0)),
                             (
-                                0.15,
+                                self.title_text.metrics().font_size,
+                                self.title_text.layout_runs().next().unwrap().line_w,
                                 max_size_text,
-                                "monospace".to_owned(),
                                 self.fg_color,
-                                description,
                             ),
                         ));
                     }
                 }
-
+                self.title_text.set_text(
+                    &mut self.fonts,
+                    &title_content,
+                    Attrs::new(),
+                    cosmic_text::Shaping::Advanced,
+                );
                 self.title.replace(Text::new(
                     &self.config,
                     (
@@ -337,11 +350,10 @@ impl App for MainApp {
                         Some(if has_desc { 30.0 } else { self.half_y }),
                     ),
                     (
-                        0.15,
+                        self.title_text.metrics().font_size,
+                        self.title_text.layout_runs().next().unwrap().line_w,
                         max_size_text,
-                        "monospace".to_owned(),
                         self.fg_color,
-                        title_content,
                     ),
                 ));
             }
@@ -361,9 +373,6 @@ impl App for MainApp {
     }
 
     fn draw(&mut self, ctx: &mut DrawTarget) {
-        #[cfg(debug_assertions)]
-        self.debug.draw(ctx, 1.0);
-
         if matches!(self.window_state, WindowState::Hidden)
             && matches!(self.content_state, ContentState::Idle)
         {
@@ -385,25 +394,31 @@ impl App for MainApp {
         }
 
         // Dibujar componentes
-        #[cfg(debug_assertions)]
-        self.debug.change_value(format!(
-            "Window: {:?}, Content: {:?}",
-            window_progress, content_progress
-        ));
-
-        self.background.draw(ctx, window_progress);
+        self.background.draw(ctx, window_progress, ());
 
         if let Some(slider) = self.slider.as_mut() {
-            slider.draw(ctx, content_progress);
+            slider.draw(ctx, content_progress, ());
         }
         if let Some(icon) = self.icon.as_mut() {
-            icon.draw(ctx, content_progress);
+            icon.draw(
+                ctx,
+                content_progress,
+                (&mut self.fonts, &mut self.sw_cache, &self.icon_char),
+            );
         }
         if let Some(title) = self.title.as_mut() {
-            title.draw(ctx, content_progress);
+            title.draw(
+                ctx,
+                content_progress,
+                (&mut self.fonts, &mut self.sw_cache, &self.title_text),
+            );
         }
         if let Some(description) = self.description.as_mut() {
-            description.draw(ctx, content_progress);
+            description.draw(
+                ctx,
+                content_progress,
+                (&mut self.fonts, &mut self.sw_cache, &self.description_text),
+            );
         }
     }
 }

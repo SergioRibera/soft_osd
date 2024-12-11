@@ -1,92 +1,72 @@
-use font_kit::font::Font;
-use raqote::{PathBuilder, Point, SolidSource, Source};
+use cosmic_text::{Attrs, Buffer, Color, Editor, FontSystem, Metrics, Shaping, SwashCache};
+use raqote::{DrawOptions, DrawTarget, PathBuilder, Point, SolidSource, Source};
+use smithay_client_toolkit::reexports::protocols::wp::alpha_modifier;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::Component;
 use crate::config::OsdPosition;
-use crate::utils::load_font;
+
+use super::Component;
 
 pub struct Text {
     x: f32,
     y: f32,
-    size: f32,
-    font: Arc<Font>,
     max_width: f32,
-    c: SolidSource,
-    content: String,
-    is_overflow: bool,
-    text_width: f32,
+    color: SolidSource,
+    position: OsdPosition,
     scroll_x: f32,
     scrolling_left: bool,
+    is_overflow: bool,
+    text_width: f32,
     last_update: Instant,
-    position: OsdPosition,
-}
-
-unsafe impl Send for Text {}
-unsafe impl Sync for Text {}
-
-fn calcule_content(font: &Font, max_width: f32, point_size: f32, content: &str) -> (bool, f32) {
-    let calcule_glyph = |id: u32| font.advance(id).unwrap().x() * point_size / 24.0 / 96.0;
-    let mut is_overflow = false;
-    let mut size = 0.0;
-
-    for c in content.chars() {
-        let id = font.glyph_for_char(c).unwrap();
-        size += calcule_glyph(id);
-    }
-
-    if size >= (max_width + 2.0) {
-        is_overflow = true;
-    }
-
-    (is_overflow, size)
 }
 
 impl Text {
-    pub fn change_value(&mut self, content: String) {
-        let (is_overflow, text_width) =
-            calcule_content(&self.font, self.max_width, self.size, &content);
-        self.scrolling_left = true;
-        self.is_overflow = is_overflow;
+    pub fn change_value(&mut self, text_width: f32) {
         self.text_width = text_width;
-        self.content = content;
+        self.is_overflow = self.text_width >= (self.max_width + 2.0);
     }
 }
 
-impl Component for Text {
-    type Args = (f32, f32, String, SolidSource, String);
+impl<'a> Component<'a> for Text {
+    type Args = (f32, f32, f32, SolidSource);
+    type DrawArgs = (&'a mut FontSystem, &'a mut SwashCache, &'a Buffer);
 
     fn new(
         config: &crate::config::Config,
         (x, y): (Option<f32>, Option<f32>),
-        (size_mul, max_size, font, color, content): Self::Args,
+        (font_size, text_width, max_size, color): Self::Args,
     ) -> Self {
         let position = config.position;
         let radius = config.radius as f32;
-        let size = config.height as f32 * size_mul;
-        let font = Arc::new(load_font(&font));
         let max_width = config.width as f32 - (radius * max_size);
-        let (is_overflow, text_width) = calcule_content(font.as_ref(), max_width, size, &content);
 
-        Self {
-            font,
-            size,
-            content,
-            c: color,
-            position,
+        Text {
             max_width,
-            is_overflow,
-            text_width,
+            color,
+            position,
             scroll_x: 0.0,
-            x: x.unwrap_or((radius * 2.0) - 10.0),
-            y: y.map(|y| y - (size / 2.0)).unwrap_or(0.0),
             scrolling_left: true,
+            is_overflow: text_width >= (max_width + 2.0),
+            text_width,
+            x: x.unwrap_or((radius * 2.0) - 10.0),
+            y: y.map(|y| y - (font_size / 2.0)).unwrap_or(0.0),
             last_update: Instant::now(),
         }
     }
 
-    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
+    fn draw(
+        &mut self,
+        ctx: &mut DrawTarget,
+        progress: f32,
+        (fonts, cache, buffer): Self::DrawArgs,
+    ) {
+        let font_size = buffer.metrics().font_size;
+        let Some(line) = buffer.layout_runs().next() else {
+            println!("not have line to render");
+            return;
+        };
         let mut pb = PathBuilder::new();
         let y = if self.position == OsdPosition::Bottom {
             self.y + (self.y * (1.0 - progress))
@@ -116,24 +96,34 @@ impl Component for Text {
 
             self.last_update = now;
         }
+        let x_offset = self.x - self.scroll_x;
+        let alpha = (self.color.a as f32 * (progress.powf(2.3))).min(255.0);
 
-        let alpha = (self.c.a as f32 * (progress.powf(2.3))).min(255.0) as u8;
-        pb.rect(self.x, y - self.size, self.max_width, self.size + 10.0);
+        pb.rect(self.x, y - font_size, self.max_width, font_size * 3.);
         let clip_path = pb.finish();
 
         ctx.push_clip(&clip_path);
-
-        ctx.draw_text(
-            self.font.as_ref(),
-            self.size,
-            &self.content,
-            Point::new(self.x - self.scroll_x, y),
-            &Source::Solid(SolidSource::from_unpremultiplied_argb(
-                alpha, self.c.r, self.c.g, self.c.b,
-            )),
-            &Default::default(),
+        buffer.draw(
+            fonts,
+            cache,
+            Color::rgba(self.color.r, self.color.g, self.color.b, alpha as u8),
+            |px, py, w, h, color| {
+                let source = Source::Solid(SolidSource::from_unpremultiplied_argb(
+                    ((color.a() as f32 / 255.0) * (alpha / 255.0) * 255.0) as u8,
+                    color.r(),
+                    color.g(),
+                    color.b(),
+                ));
+                ctx.fill_rect(
+                    px as f32 + x_offset,
+                    y + py as f32,
+                    w as f32,
+                    h as f32,
+                    &source,
+                    &DrawOptions::default(),
+                )
+            },
         );
-
         ctx.pop_clip();
     }
 }

@@ -13,8 +13,9 @@ pub struct Background {
     position: OsdPosition,
 }
 
-impl Component for Background {
+impl Component<'_> for Background {
     type Args = ();
+    type DrawArgs = ();
 
     fn new(config: &Config, _: (Option<f32>, Option<f32>), _: Self::Args) -> Self {
         let position = config.position;
@@ -31,7 +32,7 @@ impl Component for Background {
         }
     }
 
-    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32) {
+    fn draw(&mut self, ctx: &mut raqote::DrawTarget, progress: f32, _: Self::DrawArgs) {
         let or = self.radius; // Origin radius
         let rp = or * progress; // Radius progress
         let (start_height, animated_height) = if self.position == OsdPosition::Bottom {
