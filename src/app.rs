@@ -281,12 +281,18 @@ impl App for MainApp {
 
                 // Actualizar componentes
                 if i != '\x00' {
+                    self.icon_char.set_text(
+                        &mut self.fonts,
+                        &i.to_string(),
+                        Attrs::new(),
+                        cosmic_text::Shaping::Advanced,
+                    );
                     self.icon.replace(Icon::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y)),
                         (self.fg_color.clone(), i),
                     ));
-                    safe_left += 40.0;
+                    safe_left += (self.radius * 0.4);
                 }
 
                 if let Some(slider) = self.slider.as_mut() {
@@ -305,14 +311,22 @@ impl App for MainApp {
 
                 let mut has_desc = false;
                 let mut max_size_text = 3.7;
+                let mut font_size = self.title_text.metrics().font_size;
 
                 if let Some(i) = i {
+                    font_size = self.icon_char.metrics().font_size;
+                    self.icon_char.set_text(
+                        &mut self.fonts,
+                        &i.to_string(),
+                        Attrs::new(),
+                        cosmic_text::Shaping::Advanced,
+                    );
                     self.icon.replace(Icon::new(
                         &self.config,
-                        (Some(safe_left), Some(self.half_y)),
+                        (Some(safe_left), Some(self.half_y - font_size)),
                         (self.fg_color.clone(), i),
                     ));
-                    safe_left += 30.0;
+                    safe_left += (self.radius * 0.3);
                     max_size_text = 4.0;
                 }
 
@@ -327,10 +341,10 @@ impl App for MainApp {
                         );
                         self.description.replace(Text::new(
                             &self.config,
-                            (Some(safe_left), Some(50.0)),
+                            (Some(safe_left), Some(self.config.height as f32 * 0.5)),
                             (
-                                self.title_text.metrics().font_size,
-                                self.title_text.layout_runs().next().unwrap().line_w,
+                                self.description_text.metrics().font_size,
+                                self.description_text.layout_runs().map(|l| l.line_w).sum(),
                                 max_size_text,
                                 self.fg_color,
                             ),
@@ -347,11 +361,15 @@ impl App for MainApp {
                     &self.config,
                     (
                         Some(safe_left),
-                        Some(if has_desc { 30.0 } else { self.half_y }),
+                        Some(if has_desc {
+                            self.config.height as f32 * 0.3
+                        } else {
+                            self.half_y - (font_size / 2.0)
+                        }),
                     ),
                     (
                         self.title_text.metrics().font_size,
-                        self.title_text.layout_runs().next().unwrap().line_w,
+                        self.title_text.layout_runs().map(|l| l.line_w).sum(),
                         max_size_text,
                         self.fg_color,
                     ),

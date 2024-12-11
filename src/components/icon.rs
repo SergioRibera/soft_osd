@@ -8,7 +8,6 @@ use super::Component;
 pub struct Icon {
     x: f32,
     y: f32,
-    size: f32,
     content: String,
     c: SolidSource,
     position: OsdPosition,
@@ -28,10 +27,8 @@ impl<'a> Component<'a> for Icon {
         (color, content): Self::Args,
     ) -> Self {
         let position = config.position;
-        let size = config.height as f32 * 0.2;
 
         Self {
-            size,
             position,
             c: color,
             x: x.unwrap_or_default(),

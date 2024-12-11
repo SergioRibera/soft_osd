@@ -22,13 +22,6 @@ pub struct Text {
     last_update: Instant,
 }
 
-impl Text {
-    pub fn change_value(&mut self, text_width: f32) {
-        self.text_width = text_width;
-        self.is_overflow = self.text_width >= (self.max_width + 2.0);
-    }
-}
-
 impl<'a> Component<'a> for Text {
     type Args = (f32, f32, f32, SolidSource);
     type DrawArgs = (&'a mut FontSystem, &'a mut SwashCache, &'a Buffer);
@@ -63,10 +56,7 @@ impl<'a> Component<'a> for Text {
         (fonts, cache, buffer): Self::DrawArgs,
     ) {
         let font_size = buffer.metrics().font_size;
-        let Some(line) = buffer.layout_runs().next() else {
-            println!("not have line to render");
-            return;
-        };
+
         let mut pb = PathBuilder::new();
         let y = if self.position == OsdPosition::Bottom {
             self.y + (self.y * (1.0 - progress))
@@ -95,14 +85,20 @@ impl<'a> Component<'a> for Text {
             }
 
             self.last_update = now;
+        } else {
+            self.scroll_x = 0.0;
         }
+
         let x_offset = self.x - self.scroll_x;
         let alpha = (self.color.a as f32 * (progress.powf(2.3))).min(255.0);
 
-        pb.rect(self.x, y - font_size, self.max_width, font_size * 3.);
+        // Define the clipping path
+        pb.rect(self.x, y - font_size, self.max_width, font_size * 3.0);
         let clip_path = pb.finish();
 
         ctx.push_clip(&clip_path);
+
+        // Draw the buffer content
         buffer.draw(
             fonts,
             cache,
@@ -115,15 +111,16 @@ impl<'a> Component<'a> for Text {
                     color.b(),
                 ));
                 ctx.fill_rect(
-                    px as f32 + x_offset,
+                    x_offset + px as f32,
                     y + py as f32,
                     w as f32,
                     h as f32,
                     &source,
                     &DrawOptions::default(),
-                )
+                );
             },
         );
+
         ctx.pop_clip();
     }
 }
