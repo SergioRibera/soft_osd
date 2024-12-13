@@ -12,6 +12,10 @@ pub struct MainAppIPC<T: AppTy>(pub Arc<Mutex<T>>);
 // Define la interfaz D-Bus
 #[interface(name = "rs.sergioribera.sosd")]
 impl<T: AppTy + 'static> MainAppIPC<T> {
+    async fn close(&self) -> Result<()> {
+        self.0.lock().unwrap().update(AppMessage::Close);
+        Ok(())
+    }
     async fn slider(
         &self,
         urgency: i8,
@@ -62,6 +66,7 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
     default_path = "/rs/sergioribera/sosd"
 )]
 pub trait MainAppIPCSingletone {
+    async fn close(&self) -> Result<()>;
     async fn slider(
         &self,
         urgency: i8,

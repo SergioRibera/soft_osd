@@ -46,6 +46,7 @@ pub struct Config {
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub enum OsdType {
     Daemon,
+    Close,
     Notification {
         /// Title to show
         #[clap(long, short)]

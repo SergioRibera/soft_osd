@@ -68,7 +68,8 @@ pub async fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) 
                 )
                 .await
                 .unwrap(),
-            _ => {}
+            OsdType::Close => ipc.close().await.unwrap(),
+            OsdType::Daemon => {}
         }
 
         println!("Mensaje enviado a la instancia existente");
