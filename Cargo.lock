@@ -577,6 +577,8 @@ dependencies = [
  "num-traits",
  "png",
  "serde",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -1160,6 +1162,7 @@ dependencies = [
  "cosmic-text",
  "image",
  "raqote",
+ "raqote_svg",
  "serde",
  "smithay-client-toolkit",
  "tokio",
@@ -1754,6 +1757,21 @@ name = "zeno"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd15f8e0dbb966fd9245e7498c7e9e5055d9e5c8b676b95bd67091cd11a1e697"
+
+[[package]]
+name = "zune-core"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f423a2c17029964870cfaabb1f13dfab7d092a62a29a89264f4d36990ca414a"
+
+[[package]]
+name = "zune-jpeg"
+version = "0.4.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16099418600b4d8f028622f73ff6e3deaabdff330fb9a2a131dea781ee8b0768"
+dependencies = [
+ "zune-core",
+]
 
 [[package]]
 name = "zvariant"

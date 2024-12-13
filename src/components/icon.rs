@@ -1,6 +1,6 @@
 use cosmic_text::{Attrs, Buffer, Color, FontSystem, Shaping, SwashCache};
 use image::imageops::resize;
-use image::RgbaImage;
+use image::{ImageBuffer, Rgba, RgbaImage};
 use raqote::{DrawOptions, DrawTarget, SolidSource, Source};
 use std::fmt::format;
 use std::path::PathBuf;
@@ -21,21 +21,29 @@ impl TryFrom<String> for Icon {
     type Error = &'static str;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        if s.len() == 1 {
+        let path = PathBuf::from(&s);
+        if !path.exists() {
             if let Some(icon) = s.chars().next() {
                 return Ok(Self::Char(icon));
             }
         }
 
-        let path = PathBuf::from(s);
+        let size = *ICON_SIZE.read().unwrap() as u32;
+
         match path.extension().map(|e| e.to_str()).flatten() {
-            Some("png") => {
+            Some("png") | Some("jpeg") | Some("jpg") => {
                 if let Ok(img) = image::open(path) {
-                    let size = *ICON_SIZE.read().unwrap() as u32;
                     let img = resize(&img, size, size, image::imageops::FilterType::Gaussian);
                     return Ok(Self::Image(img));
                 }
                 Err("No se pudo cargar el icono")
+            }
+            Some("svg") => {
+                let img = raqote_svg::render_to_image(
+                    std::fs::read_to_string(path).unwrap(),
+                    (size, size),
+                );
+                return Ok(Self::Image(img));
             }
             _ => Err("No se pudo cargar el icono"),
         }
@@ -89,9 +97,16 @@ impl Icon {
             return None;
         }
 
-        let img = image::load_from_memory_with_format(&data, image::ImageFormat::Png).ok()?;
         let size = *ICON_SIZE.read().unwrap() as u32;
-        let img = resize(&img, size, size, image::imageops::FilterType::Gaussian);
+        let img = match channels {
+            3 => RgbaImage::from_fn(width as u32, height as u32, |x, y| {
+                let index = ((y as usize * width as usize) + x as usize);
+                Rgba([data[index], data[index + 1], data[index + 2], 255])
+            }),
+            4 => RgbaImage::from_raw(width as u32, height as u32, data)?,
+            _ => return None,
+        };
+        let img = image::imageops::resize(&img, size, size, image::imageops::FilterType::Gaussian);
 
         Some(Self::Image(img))
     }
