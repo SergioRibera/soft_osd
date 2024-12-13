@@ -1,0 +1,13 @@
+[package]
+name = "raqote_svg"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+image = ["dep:image"]
+
+[dependencies]
+csscolorparser = { version = "0.7.0", features = ["lab", "rgb"] }
+image = { workspace = true, optional = true }
+raqote.workspace = true
+svg = "0.18.0"
