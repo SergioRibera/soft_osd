@@ -122,10 +122,10 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
             None
         });
 
-        let timeout = if expire_timeout >= 0 {
+        let timeout = if expire_timeout <= 0 {
             None
         } else {
-            Some(Duration::from_millis(expire_timeout as u64))
+            Some(expire_timeout)
         };
 
         let urgency = hints

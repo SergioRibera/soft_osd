@@ -26,7 +26,7 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
             value,
             urgency: Urgency::from(urgency),
             icon: icon.try_into().ok(),
-            timeout: (timeout > 0).then_some(Duration::from_millis(timeout as u64)),
+            timeout: (timeout > 0).then_some(timeout),
             bg: bg.is_empty().not().then(|| bg),
             fg: fg.is_empty().not().then(|| fg),
         });
@@ -47,7 +47,7 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
             body: body.is_empty().not().then(|| body),
             urgency: Urgency::from(urgency),
             icon: icon.try_into().ok(),
-            timeout: (timeout > 0).then_some(Duration::from_millis(timeout as u64)),
+            timeout: (timeout > 0).then_some(timeout),
             bg: bg.is_empty().not().then(|| bg),
             fg: fg.is_empty().not().then(|| fg),
         });

@@ -72,7 +72,7 @@ pub enum AppMessage {
     Slider {
         urgency: Urgency,
         icon: Option<Icon>,
-        timeout: Option<Duration>,
+        timeout: Option<i32>,
         value: f32,
         bg: Option<String>,
         fg: Option<String>,
@@ -82,7 +82,7 @@ pub enum AppMessage {
         title: String,
         urgency: Urgency,
         icon: Option<Icon>,
-        timeout: Option<Duration>,
+        timeout: Option<i32>,
         body: Option<String>,
         bg: Option<String>,
         fg: Option<String>,
@@ -113,6 +113,7 @@ pub struct MainApp {
     // Animation states
     content_state: ContentState,
     window_state: WindowState,
+    show_duration: f32,
 }
 
 enum ContentState {
@@ -134,6 +135,7 @@ pub static ICON_SIZE: RwLock<f32> = RwLock::new(12.0);
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
         let fg_color = config.foreground_color.to_color();
+        let show_duration = config.show_duration;
         let radius = config.radius as f32;
         let half_y = config.height as f32 / 2.0;
         let safe_left = (radius * 2.0) - 20.0;
@@ -169,6 +171,7 @@ impl From<Config> for MainApp {
 
             content_state: ContentState::Idle,
             window_state: WindowState::Hidden,
+            show_duration,
         }
     }
 }
@@ -185,12 +188,12 @@ impl MainApp {
         self.clear_content();
         self.content_state = ContentState::Idle;
         self.window_state = WindowState::Hidden;
+        self.show_duration = self.config.show_duration;
     }
 
     fn update_animation_states(&mut self, current_time: Instant) {
-        // TODO: add local duration
         let animation_duration = self.config.animation_duration;
-        let show_duration = self.config.show_duration;
+        let show_duration = self.show_duration;
 
         // Actualizar estado de la ventana
         self.window_state = match &self.window_state {
@@ -351,15 +354,17 @@ impl App for MainApp {
             AppMessage::Slider {
                 urgency: _,
                 icon,
-                timeout: _,
+                timeout,
                 value,
                 ..
             } => {
                 self.clear_content();
+                self.show_duration = timeout
+                    .map(|t| t as f32)
+                    .unwrap_or_else(|| self.config.show_duration);
 
                 // Actualizar componentes
                 if let Some(i) = icon {
-                    println!("Has Icon");
                     self.icon.replace(IconComponent::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y)),
@@ -383,18 +388,20 @@ impl App for MainApp {
                 title,
                 urgency: _,
                 icon: i,
-                timeout: _,
+                timeout,
                 body: description,
                 ..
             } => {
                 self.clear_content();
+                self.show_duration = timeout
+                    .map(|t| t as f32)
+                    .unwrap_or_else(|| self.config.show_duration);
 
                 let mut has_desc = false;
                 let mut max_size_text = 3.7;
                 let mut font_size = self.title_text.metrics().font_size;
 
                 if let Some(i) = i {
-                    println!("Has Icon");
                     font_size = self.icon_char.metrics().font_size;
                     self.icon.replace(IconComponent::new(
                         &self.config,
@@ -460,6 +467,7 @@ impl App for MainApp {
                     start_time: current_time,
                     progress: 0.0,
                 };
+                self.show_duration = 0.0;
                 return;
             }
         }
