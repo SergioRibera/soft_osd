@@ -13,15 +13,32 @@ pub struct Background {
     position: OsdPosition,
 }
 
+impl Background {
+    pub fn change_color(&mut self, new_color: SolidSource) {
+        self.color = Source::Solid(new_color);
+    }
+}
+
 impl Component<'_> for Background {
     type Args = ();
     type DrawArgs = ();
 
     fn new(config: &Config, _: (Option<f32>, Option<f32>), _: Self::Args) -> Self {
-        let position = config.position;
-        let color = Source::Solid(config.background.to_color());
-        let radius = config.radius as f32;
-        let (width, height) = ((config.width as f32 - radius * 4.0), config.height as f32);
+        let window = config.window.clone().unwrap_or_default();
+        let position = window.position;
+        let color = Source::Solid(
+            config
+                .globals
+                .background
+                .as_deref()
+                .unwrap_or("#000")
+                .to_color(),
+        );
+        let radius = window.radius.unwrap_or(100) as f32;
+        let (width, height) = (
+            (window.width.unwrap_or(600) as f32 - radius * 4.0),
+            window.height.unwrap_or(80) as f32,
+        );
 
         Self {
             color,

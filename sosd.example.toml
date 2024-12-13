@@ -1,0 +1,25 @@
+animation_duration = 1.0
+show_duration = 5.0
+background = "#000"
+foreground_color = "#fff"
+
+[window]
+position = "Top"
+radius = 100
+width = 600
+height = 80
+
+[urgency_low]
+show_duration = 5.0
+background = "#000"
+foreground_color = "#fff"
+
+[urgency_normal]
+show_duration = 5.0
+background = "#000"
+foreground_color = "#fff"
+
+[urgency_critical]
+show_duration = 10.0
+background = "#ff6961"
+foreground_color = "#fff"

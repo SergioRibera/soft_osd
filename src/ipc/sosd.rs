@@ -1,10 +1,10 @@
 use std::ops::Not;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use zbus::{fdo::Result, interface, proxy};
 
-use crate::app::{AppMessage, MainApp, Urgency};
+use crate::app::AppMessage;
+use crate::notification::Urgency;
 use crate::window::AppTy;
 
 pub struct MainAppIPC<T: AppTy>(pub Arc<Mutex<T>>);

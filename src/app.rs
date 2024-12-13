@@ -1,14 +1,12 @@
-use clap::ValueEnum;
-use std::cell::Cell;
 use std::sync::RwLock;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
-use serde::{Deserialize, Serialize};
 
 use crate::components::{Background, Component, Icon, IconComponent, Slider, Text};
-use crate::config::Config;
+use crate::config::{Config, UrgencyConfig};
+use crate::notification::Urgency;
 use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
@@ -17,58 +15,9 @@ pub trait App: From<Config> + Sized + Sync + Send {
     fn draw(&mut self, ctx: &mut DrawTarget);
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
-pub enum Urgency {
-    Low,
-    #[default]
-    Normal,
-    Critical,
-}
-
-impl From<u8> for Urgency {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Urgency::Low,
-            2 => Urgency::Critical,
-            _ => Urgency::Normal,
-        }
-    }
-}
-
-impl From<i8> for Urgency {
-    fn from(value: i8) -> Self {
-        match value {
-            0 => Urgency::Low,
-            2 => Urgency::Critical,
-            _ => Urgency::Normal,
-        }
-    }
-}
-
-impl From<Urgency> for i8 {
-    fn from(value: Urgency) -> Self {
-        match value {
-            Urgency::Low => 0,
-            Urgency::Normal => 1,
-            Urgency::Critical => 2,
-        }
-    }
-}
-
-impl From<Urgency> for u8 {
-    fn from(value: Urgency) -> Self {
-        match value {
-            Urgency::Low => 0,
-            Urgency::Normal => 1,
-            Urgency::Critical => 2,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum AppMessage {
     Close,
-    // urgency, value, icon, timeout, bg_color, fg_color
     Slider {
         urgency: Urgency,
         icon: Option<Icon>,
@@ -77,7 +26,6 @@ pub enum AppMessage {
         bg: Option<String>,
         fg: Option<String>,
     },
-    // title, urgency, icon, timeout, body, bg_color, fg_color
     Notification {
         title: String,
         urgency: Urgency,
@@ -108,7 +56,6 @@ pub struct MainApp {
     half_y: f32,
     config: Config,
     safe_left: f32,
-    fg_color: SolidSource,
 
     // Animation states
     content_state: ContentState,
@@ -134,12 +81,12 @@ pub static ICON_SIZE: RwLock<f32> = RwLock::new(12.0);
 
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
-        let fg_color = config.foreground_color.to_color();
-        let show_duration = config.show_duration;
-        let radius = config.radius as f32;
-        let half_y = config.height as f32 / 2.0;
+        let show_duration = config.globals.show_duration.unwrap_or(5.0);
+        let window = config.window.clone().unwrap_or_default();
+        let radius = window.radius.unwrap_or(100) as f32;
+        let half_y = window.height.unwrap_or(80) as f32 / 2.0;
         let safe_left = (radius * 2.0) - 20.0;
-        let size = config.height as f32 * 0.18;
+        let size = window.height.unwrap_or(80) as f32 * 0.18;
         *ICON_SIZE.write().unwrap() = size;
 
         let mut fonts = FontSystem::new();
@@ -160,7 +107,6 @@ impl From<Config> for MainApp {
             config,
             half_y,
             radius,
-            fg_color,
             safe_left,
             background,
 
@@ -188,11 +134,11 @@ impl MainApp {
         self.clear_content();
         self.content_state = ContentState::Idle;
         self.window_state = WindowState::Hidden;
-        self.show_duration = self.config.show_duration;
+        self.show_duration = self.config.globals.show_duration.unwrap_or(5.0);
     }
 
     fn update_animation_states(&mut self, current_time: Instant) {
-        let animation_duration = self.config.animation_duration;
+        let animation_duration = self.config.globals.animation_duration.unwrap_or(1.0);
         let show_duration = self.show_duration;
 
         // Actualizar estado de la ventana
@@ -321,6 +267,7 @@ impl App for MainApp {
     fn update(&mut self, msg: AppMessage) {
         let mut safe_left = self.safe_left;
         let current_time = Instant::now();
+        let window = self.config.window.clone().unwrap_or_default();
 
         // Manejar estados de animación
         match self.window_state {
@@ -352,29 +299,48 @@ impl App for MainApp {
 
         match msg {
             AppMessage::Slider {
-                urgency: _,
+                urgency,
                 icon,
                 timeout,
                 value,
-                ..
+                bg,
+                fg,
             } => {
                 self.clear_content();
+                let urgency = UrgencyConfig::from((&self.config, urgency));
                 self.show_duration = timeout
                     .map(|t| t as f32)
-                    .unwrap_or_else(|| self.config.show_duration);
+                    .or_else(|| urgency.show_duration)
+                    .or_else(|| self.config.globals.show_duration)
+                    .unwrap_or(5.0);
+
+                let fg = fg
+                    .or_else(|| urgency.foreground_color.clone())
+                    .or_else(|| self.config.globals.foreground_color.clone())
+                    .as_deref()
+                    .map(ToColor::to_color)
+                    .unwrap();
+                let bg = bg
+                    .or_else(|| urgency.background.clone())
+                    .or_else(|| self.config.globals.background.clone())
+                    .as_deref()
+                    .map(ToColor::to_color)
+                    .unwrap();
+                self.background.change_color(bg);
 
                 // Actualizar componentes
                 if let Some(i) = icon {
                     self.icon.replace(IconComponent::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y)),
-                        (self.fg_color.clone(), i),
+                        (fg, i),
                     ));
                     safe_left += self.radius * 0.4;
                 }
 
                 if let Some(slider) = self.slider.as_mut() {
                     slider.change_value(value);
+                    slider.change_color(bg, fg);
                 } else {
                     self.slider.replace(Slider::new(
                         &self.config,
@@ -386,16 +352,38 @@ impl App for MainApp {
 
             AppMessage::Notification {
                 title,
-                urgency: _,
+                urgency,
                 icon: i,
                 timeout,
                 body: description,
-                ..
+                bg,
+                fg,
             } => {
                 self.clear_content();
+                let urgency = UrgencyConfig::from((&self.config, urgency));
+                println!(
+                    "Urgency: {urgency:?} - Global: {:?} - Global BG: {:?}",
+                    self.config.globals.foreground_color, self.config.globals.background
+                );
                 self.show_duration = timeout
                     .map(|t| t as f32)
-                    .unwrap_or_else(|| self.config.show_duration);
+                    .or_else(|| urgency.show_duration)
+                    .or_else(|| self.config.globals.show_duration)
+                    .unwrap_or(5.0);
+
+                let fg = fg
+                    .or_else(|| urgency.foreground_color.clone())
+                    .or_else(|| self.config.globals.foreground_color.clone())
+                    .as_deref()
+                    .map(ToColor::to_color)
+                    .unwrap();
+                let bg = bg
+                    .or_else(|| urgency.background.clone())
+                    .or_else(|| self.config.globals.background.clone())
+                    .as_deref()
+                    .map(ToColor::to_color)
+                    .unwrap();
+                self.background.change_color(bg);
 
                 let mut has_desc = false;
                 let mut max_size_text = 3.7;
@@ -406,7 +394,7 @@ impl App for MainApp {
                     self.icon.replace(IconComponent::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y - font_size)),
-                        (self.fg_color.clone(), i),
+                        (fg, i),
                     ));
                     safe_left += self.radius * 0.3;
                     max_size_text = 4.0;
@@ -423,12 +411,15 @@ impl App for MainApp {
                         );
                         self.description.replace(Text::new(
                             &self.config,
-                            (Some(safe_left), Some(self.config.height as f32 * 0.5)),
+                            (
+                                Some(safe_left),
+                                Some(window.height.unwrap_or(80) as f32 * 0.5),
+                            ),
                             (
                                 self.description_text.metrics().font_size,
                                 self.description_text.layout_runs().map(|l| l.line_w).sum(),
                                 max_size_text,
-                                self.fg_color,
+                                fg,
                             ),
                         ));
                     }
@@ -444,7 +435,7 @@ impl App for MainApp {
                     (
                         Some(safe_left),
                         Some(if has_desc {
-                            self.config.height as f32 * 0.3
+                            window.height.unwrap_or(80) as f32 * 0.3
                         } else {
                             self.half_y - (font_size / 2.0)
                         }),
@@ -453,7 +444,7 @@ impl App for MainApp {
                         self.title_text.metrics().font_size,
                         self.title_text.layout_runs().map(|l| l.line_w).sum(),
                         max_size_text,
-                        self.fg_color,
+                        fg,
                     ),
                 ));
             }

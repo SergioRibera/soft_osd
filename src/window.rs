@@ -23,11 +23,7 @@ use smithay_client_toolkit::{
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{
-        wl_output,
-        wl_region::{self, WlRegion},
-        wl_seat, wl_shm, wl_surface,
-    },
+    protocol::{wl_output, wl_region::WlRegion, wl_seat, wl_shm, wl_surface},
     Connection, Dispatch, QueueHandle,
 };
 
@@ -87,12 +83,15 @@ fn set_pos(
 
 impl<T: AppTy + 'static> Window<T> {
     pub fn run(render: Arc<Mutex<T>>, config: Config) {
-        let &Config {
+        let Config { window, .. } = &config;
+        let crate::config::Window {
             position,
             width,
             height,
             ..
-        } = &config;
+        } = window.clone().unwrap_or_default();
+        let width = width.unwrap_or(600);
+        let height = height.unwrap_or(80);
         let (width, height) = match position {
             OsdPosition::Bottom | OsdPosition::Top => (width, height),
             OsdPosition::Left | OsdPosition::Right => (height, width),
@@ -400,12 +399,12 @@ impl<T: AppTy + 'static> ProvidesRegistryState for Window<T> {
 
 impl<T: AppTy + 'static> Dispatch<WlRegion, ()> for Window<T> {
     fn event(
-        state: &mut Self,
-        proxy: &WlRegion,
+        _state: &mut Self,
+        _proxy: &WlRegion,
         event: <WlRegion as wayland_client::Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
     ) {
         println!("Region Event: {event:?}");
     }

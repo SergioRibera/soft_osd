@@ -7,13 +7,13 @@ pub use notification::*;
 pub use sosd::*;
 use zbus::connection::Builder;
 
-use crate::config::OsdType;
+use crate::config::{Global, OsdType};
 use crate::window::AppTy;
 
 pub const APP_ID: &str = "rs.sergioribera.sosd";
 pub const APP_PATH: &str = "/rs/sergioribera/sosd";
 
-pub async fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) {
+pub async fn connect<T: AppTy + 'static>(globals: &Global, command: &OsdType, app: Arc<Mutex<T>>) {
     let server = MainAppIPC(app.clone());
 
     let ipc_conn = Builder::session()
@@ -34,17 +34,14 @@ pub async fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) 
                 value,
                 image,
                 urgency,
-                background,
-                expire_timeout,
-                foreground_color,
             } => ipc
                 .slider(
                     urgency.clone().unwrap_or_default().into(),
                     *value as i32,
                     image.clone().unwrap_or_default(),
-                    expire_timeout.unwrap_or(-1),
-                    background.clone().unwrap_or_default(),
-                    foreground_color.clone().unwrap_or_default(),
+                    globals.show_duration.map(|f| f as i32).unwrap_or(-1),
+                    globals.background.clone().unwrap_or_default(),
+                    globals.foreground_color.clone().unwrap_or_default(),
                 )
                 .await
                 .unwrap(),
@@ -53,23 +50,21 @@ pub async fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) 
                 title,
                 description,
                 urgency,
-                expire_timeout,
-                background,
-                foreground_color,
             } => ipc
                 .notification(
                     title.clone(),
                     urgency.clone().unwrap_or_default().into(),
                     description.clone().unwrap_or_default(),
                     image.clone().unwrap_or_default(),
-                    expire_timeout.unwrap_or(-1),
-                    background.clone().unwrap_or_default(),
-                    foreground_color.clone().unwrap_or_default(),
+                    globals.show_duration.map(|f| f as i32).unwrap_or(-1),
+                    globals.background.clone().unwrap_or_default(),
+                    globals.foreground_color.clone().unwrap_or_default(),
                 )
                 .await
                 .unwrap(),
             OsdType::Close => ipc.close().await.unwrap(),
             OsdType::Daemon => {}
+            OsdType::Init => {}
         }
 
         println!("Mensaje enviado a la instancia existente");

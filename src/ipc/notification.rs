@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use zbus::object_server::SignalEmitter;
-use zbus::zvariant::Structure;
+
 use zbus::{fdo::Result, interface};
 
-use crate::app::{AppMessage, Urgency};
+use crate::app::AppMessage;
 use crate::components::Icon;
+use crate::notification::Urgency;
 use crate::window::AppTy;
 
 pub struct NotificationIPC<T: AppTy>(pub Arc<Mutex<T>>);

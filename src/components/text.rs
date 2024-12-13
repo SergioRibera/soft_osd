@@ -1,8 +1,6 @@
-use cosmic_text::{Attrs, Buffer, Color, Editor, FontSystem, Metrics, Shaping, SwashCache};
-use raqote::{DrawOptions, DrawTarget, PathBuilder, Point, SolidSource, Source};
-use smithay_client_toolkit::reexports::protocols::wp::alpha_modifier;
-use std::marker::PhantomData;
-use std::sync::Arc;
+use cosmic_text::{Buffer, Color, FontSystem, SwashCache};
+use raqote::{DrawOptions, DrawTarget, PathBuilder, SolidSource, Source};
+
 use std::time::Instant;
 
 use crate::config::OsdPosition;
@@ -31,9 +29,10 @@ impl<'a> Component<'a> for Text {
         (x, y): (Option<f32>, Option<f32>),
         (font_size, text_width, max_size, color): Self::Args,
     ) -> Self {
-        let position = config.position;
-        let radius = config.radius as f32;
-        let max_width = config.width as f32 - (radius * max_size);
+        let window = config.window.clone().unwrap_or_default();
+        let position = window.position;
+        let radius = window.radius.unwrap_or(100) as f32;
+        let max_width = window.width.unwrap_or(600) as f32 - (radius * max_size);
 
         Text {
             max_width,

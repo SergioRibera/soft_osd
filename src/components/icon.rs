@@ -1,8 +1,8 @@
 use cosmic_text::{Attrs, Buffer, Color, FontSystem, Shaping, SwashCache};
 use image::imageops::resize;
-use image::{ImageBuffer, Rgba, RgbaImage};
+use image::{Rgba, RgbaImage};
 use raqote::{DrawOptions, DrawTarget, SolidSource, Source};
-use std::fmt::format;
+
 use std::path::PathBuf;
 use zbus::zvariant::{Structure, Value};
 
@@ -100,7 +100,7 @@ impl Icon {
         let size = *ICON_SIZE.read().unwrap() as u32;
         let img = match channels {
             3 => RgbaImage::from_fn(width as u32, height as u32, |x, y| {
-                let index = ((y as usize * width as usize) + x as usize);
+                let index = (y as usize * width as usize) + x as usize;
                 Rgba([data[index], data[index + 1], data[index + 2], 255])
             }),
             4 => RgbaImage::from_raw(width as u32, height as u32, data)?,
@@ -129,7 +129,7 @@ impl<'a> Component<'a> for IconComponent {
         (x, y): (Option<f32>, Option<f32>),
         (c, icon): Self::Args,
     ) -> Self {
-        let position = config.position;
+        let position = config.window.clone().unwrap_or_default().position;
 
         Self {
             c,

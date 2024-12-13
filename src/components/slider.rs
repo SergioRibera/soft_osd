@@ -21,6 +21,12 @@ impl Slider {
         self.value = value.min(1.0).max(0.036);
     }
 
+    pub fn change_color(&mut self, bg: SolidSource, new_color: SolidSource) {
+        let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
+        self.c = new_color;
+        self.bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
+    }
+
     pub fn draw_slide(&self, y: f32, slider_width: f32) -> Path {
         let x = self.x;
         let mut pb_fg = PathBuilder::new();
@@ -80,12 +86,23 @@ impl Component<'_> for Slider {
         (x, y): (Option<f32>, Option<f32>),
         (value, size_mul): Self::Args,
     ) -> Self {
-        let position = config.position;
-        let rounded = config.height as f32 * 0.05; // size of rounded border
-        let radius = config.radius as f32; // padding of widget
-        let size = config.width as f32 - (radius * size_mul); // size of slidebar
-        let c = config.foreground_color.to_color();
-        let bg = config.background.to_color();
+        let window = config.window.clone().unwrap_or_default();
+        let position = window.position;
+        let rounded = window.height.unwrap_or(80) as f32 * 0.05; // size of rounded border
+        let radius = window.radius.unwrap_or(100) as f32; // padding of widget
+        let size = window.width.unwrap_or(600) as f32 - (radius * size_mul); // size of slidebar
+        let c = config
+            .globals
+            .foreground_color
+            .as_deref()
+            .unwrap_or("#fff")
+            .to_color();
+        let bg = config
+            .globals
+            .background
+            .as_deref()
+            .unwrap_or("#000")
+            .to_color();
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
         let bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
         let value = (value / 100.0).min(1.0).max(0.036);
@@ -99,7 +116,7 @@ impl Component<'_> for Slider {
             position,
             x: x.unwrap_or_else(|| radius * 2.4),
             y: y.map(|y| y - (rounded * 2.0))
-                .unwrap_or_else(|| config.height as f32 / 2.0 - (rounded * 2.0)),
+                .unwrap_or_else(|| window.height.unwrap_or(80) as f32 / 2.0 - (rounded * 2.0)),
         }
     }
 
