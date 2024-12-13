@@ -2,10 +2,13 @@ mod render;
 
 use std::path::Path;
 
+#[cfg(feature = "image")]
+pub use image;
 pub use raqote;
+pub use svg;
 
 use raqote::DrawTarget;
-use render::render;
+pub use render::render;
 
 #[cfg(feature = "image")]
 use image::{EncodableLayout, RgbaImage};
@@ -33,12 +36,29 @@ pub fn render_bytes_to_file(content: Vec<u8>, (width, height): (i32, i32), path:
 }
 
 #[cfg(feature = "image")]
+pub fn render_bytes_to_image(content: Vec<u8>, (width, height): (u32, u32)) -> RgbaImage {
+    let mut draw = DrawTarget::new(width as i32, height as i32);
+    let content = String::from_utf8(content).unwrap();
+    let tree = svg::read(&content).unwrap();
+    render(tree, &mut draw);
+
+    RgbaImage::from_vec(width, height, draw.get_data_u8().to_vec()).unwrap()
+}
+
+#[cfg(feature = "image")]
 pub fn render_to_image(content: impl AsRef<str>, (width, height): (u32, u32)) -> RgbaImage {
     let mut draw = DrawTarget::new(width as i32, height as i32);
     let tree = svg::read(content.as_ref()).unwrap();
     render(tree, &mut draw);
 
     RgbaImage::from_vec(width, height, draw.get_data_u8().to_vec()).unwrap()
+}
+
+#[cfg(feature = "image")]
+pub fn render_bytes_to_image_mut(content: Vec<u8>, img: &mut RgbaImage) {
+    let rendered = render_bytes_to_image(content, (img.width(), img.height()));
+
+    img.copy_from_slice(rendered.as_bytes());
 }
 
 #[cfg(feature = "image")]
