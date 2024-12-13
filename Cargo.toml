@@ -19,6 +19,7 @@ codegen-units = 1
 [dependencies]
 clap = { version = "4.5.20", features = ["derive"] }
 cosmic-text = "0.12.1"
+image = { version = "0.25.5", default-features = false, features = ["png", "serde"] }
 raqote = { version = "0.8.5", default-features = false }
 serde = { version = "1.0.214", features = ["derive"] }
 smithay-client-toolkit = "0.19.2"

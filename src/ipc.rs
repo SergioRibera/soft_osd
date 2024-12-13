@@ -30,20 +30,41 @@ pub async fn connect<T: AppTy + 'static>(command: &OsdType, app: Arc<Mutex<T>>) 
         let ipc = MainAppIPCSingletoneProxy::new(&ipc_conn).await.unwrap();
         println!("Sending slider command");
         match command {
-            OsdType::Slider { value, icon } => {
-                ipc.slider(icon.to_string(), *value as i32).await.unwrap()
-            }
+            OsdType::Slider {
+                value,
+                image,
+                urgency,
+                background,
+                expire_timeout,
+                foreground_color,
+            } => ipc
+                .slider(
+                    urgency.clone().unwrap_or_default().into(),
+                    *value as i32,
+                    image.clone().unwrap_or_default(),
+                    expire_timeout.unwrap_or(-1),
+                    background.clone().unwrap_or_default(),
+                    foreground_color.clone().unwrap_or_default(),
+                )
+                .await
+                .unwrap(),
             OsdType::Notification {
-                icon,
-                image: _,
+                image,
                 title,
                 description,
-                font: _,
+                urgency,
+                expire_timeout,
+                background,
+                foreground_color,
             } => ipc
                 .notification(
-                    icon.unwrap_or_else(|| '\x00').to_string(),
                     title.clone(),
+                    urgency.clone().unwrap_or_default().into(),
                     description.clone().unwrap_or_default(),
+                    image.clone().unwrap_or_default(),
+                    expire_timeout.unwrap_or(-1),
+                    background.clone().unwrap_or_default(),
+                    foreground_color.clone().unwrap_or_default(),
                 )
                 .await
                 .unwrap(),

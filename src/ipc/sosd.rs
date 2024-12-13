@@ -1,8 +1,10 @@
+use std::ops::Not;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use zbus::{fdo::Result, interface, proxy};
 
-use crate::app::{AppMessage, MainApp};
+use crate::app::{AppMessage, MainApp, Urgency};
 use crate::window::AppTy;
 
 pub struct MainAppIPC<T: AppTy>(pub Arc<Mutex<T>>);
@@ -10,20 +12,45 @@ pub struct MainAppIPC<T: AppTy>(pub Arc<Mutex<T>>);
 // Define la interfaz D-Bus
 #[interface(name = "rs.sergioribera.sosd")]
 impl<T: AppTy + 'static> MainAppIPC<T> {
-    async fn slider(&self, i: String, v: i32) -> Result<()> {
-        let v = v as f32;
-        self.0
-            .lock()
-            .unwrap()
-            .update(AppMessage::Slider(i.chars().next().unwrap(), v));
+    async fn slider(
+        &self,
+        urgency: i8,
+        value: i32,
+        icon: String,
+        timeout: i32,
+        bg: String,
+        fg: String,
+    ) -> Result<()> {
+        let value = value as f32;
+        self.0.lock().unwrap().update(AppMessage::Slider {
+            value,
+            urgency: Urgency::from(urgency),
+            icon: icon.try_into().ok(),
+            timeout: (timeout > 0).then_some(Duration::from_millis(timeout as u64)),
+            bg: bg.is_empty().not().then(|| bg),
+            fg: fg.is_empty().not().then(|| fg),
+        });
         Ok(())
     }
-    async fn notification(&self, i: String, t: String, d: String) -> Result<()> {
-        println!("Received Notification");
-        self.0
-            .lock()
-            .unwrap()
-            .update(AppMessage::Notification(i.chars().next(), t, Some(d)));
+    async fn notification(
+        &self,
+        title: String,
+        urgency: u8,
+        body: String,
+        icon: String,
+        timeout: i32,
+        bg: String,
+        fg: String,
+    ) -> Result<()> {
+        self.0.lock().unwrap().update(AppMessage::Notification {
+            title,
+            body: body.is_empty().not().then(|| body),
+            urgency: Urgency::from(urgency),
+            icon: icon.try_into().ok(),
+            timeout: (timeout > 0).then_some(Duration::from_millis(timeout as u64)),
+            bg: bg.is_empty().not().then(|| bg),
+            fg: fg.is_empty().not().then(|| fg),
+        });
         Ok(())
     }
 }
@@ -35,6 +62,23 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
     default_path = "/rs/sergioribera/sosd"
 )]
 pub trait MainAppIPCSingletone {
-    async fn slider(&self, i: String, v: i32) -> Result<()>;
-    async fn notification(&self, i: String, t: String, d: String) -> Result<()>;
+    async fn slider(
+        &self,
+        urgency: i8,
+        value: i32,
+        icon: String,
+        timeout: i32,
+        bg: String,
+        fg: String,
+    ) -> Result<()>;
+    async fn notification(
+        &self,
+        title: String,
+        urgency: u8,
+        body: String,
+        icon: String,
+        timeout: i32,
+        bg: String,
+        fg: String,
+    ) -> Result<()>;
 }

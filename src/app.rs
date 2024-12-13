@@ -1,10 +1,13 @@
-use std::time::Instant;
+use clap::ValueEnum;
+use std::cell::Cell;
+use std::sync::RwLock;
+use std::time::{Duration, Instant};
 
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
 use serde::{Deserialize, Serialize};
 
-use crate::components::{Background, Component, Icon, Slider, Text};
+use crate::components::{Background, Component, Icon, IconComponent, Slider, Text};
 use crate::config::Config;
 use crate::utils::{ease_out_cubic, ToColor};
 
@@ -14,11 +17,76 @@ pub trait App: From<Config> + Sized + Sync + Send {
     fn draw(&mut self, ctx: &mut DrawTarget);
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
+pub enum Urgency {
+    Low,
+    #[default]
+    Normal,
+    Critical,
+}
+
+impl From<u8> for Urgency {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Urgency::Low,
+            2 => Urgency::Critical,
+            _ => Urgency::Normal,
+        }
+    }
+}
+
+impl From<i8> for Urgency {
+    fn from(value: i8) -> Self {
+        match value {
+            0 => Urgency::Low,
+            2 => Urgency::Critical,
+            _ => Urgency::Normal,
+        }
+    }
+}
+
+impl From<Urgency> for i8 {
+    fn from(value: Urgency) -> Self {
+        match value {
+            Urgency::Low => 0,
+            Urgency::Normal => 1,
+            Urgency::Critical => 2,
+        }
+    }
+}
+
+impl From<Urgency> for u8 {
+    fn from(value: Urgency) -> Self {
+        match value {
+            Urgency::Low => 0,
+            Urgency::Normal => 1,
+            Urgency::Critical => 2,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum AppMessage {
     Close,
-    Slider(char, f32),
-    Notification(Option<char>, String, Option<String>),
+    // urgency, value, icon, timeout, bg_color, fg_color
+    Slider {
+        urgency: Urgency,
+        icon: Option<Icon>,
+        timeout: Option<Duration>,
+        value: f32,
+        bg: Option<String>,
+        fg: Option<String>,
+    },
+    // title, urgency, icon, timeout, body, bg_color, fg_color
+    Notification {
+        title: String,
+        urgency: Urgency,
+        icon: Option<Icon>,
+        timeout: Option<Duration>,
+        body: Option<String>,
+        bg: Option<String>,
+        fg: Option<String>,
+    },
 }
 
 pub struct MainApp {
@@ -29,7 +97,7 @@ pub struct MainApp {
     icon_char: Buffer,
 
     // Components
-    icon: Option<Icon>,
+    icon: Option<IconComponent>,
     background: Background,
     slider: Option<Slider>,
     title: Option<Text>,
@@ -61,6 +129,8 @@ enum WindowState {
     Exiting { start_time: Instant, progress: f32 },
 }
 
+pub static ICON_SIZE: RwLock<f32> = RwLock::new(12.0);
+
 impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
         let fg_color = config.foreground_color.to_color();
@@ -68,11 +138,12 @@ impl From<Config> for MainApp {
         let half_y = config.height as f32 / 2.0;
         let safe_left = (radius * 2.0) - 20.0;
         let size = config.height as f32 * 0.15;
+        *ICON_SIZE.write().unwrap() = size;
 
         let mut fonts = FontSystem::new();
         let metrics = Metrics::new(size, size);
         let title_text = Buffer::new(&mut fonts, metrics);
-        let description_text = Buffer::new(&mut fonts, metrics);
+        let description_text = Buffer::new(&mut fonts, metrics.scale(0.8));
         let icon_char = Buffer::new(&mut fonts, metrics);
 
         let background = Background::new(&config, (None, None), ());
@@ -117,6 +188,7 @@ impl MainApp {
     }
 
     fn update_animation_states(&mut self, current_time: Instant) {
+        // TODO: add local duration
         let animation_duration = self.config.animation_duration;
         let show_duration = self.config.show_duration;
 
@@ -276,23 +348,24 @@ impl App for MainApp {
         }
 
         match msg {
-            AppMessage::Slider(i, value) => {
+            AppMessage::Slider {
+                urgency: _,
+                icon,
+                timeout: _,
+                value,
+                ..
+            } => {
                 self.clear_content();
 
                 // Actualizar componentes
-                if i != '\x00' {
-                    self.icon_char.set_text(
-                        &mut self.fonts,
-                        &i.to_string(),
-                        Attrs::new(),
-                        cosmic_text::Shaping::Advanced,
-                    );
-                    self.icon.replace(Icon::new(
+                if let Some(i) = icon {
+                    println!("Has Icon");
+                    self.icon.replace(IconComponent::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y)),
                         (self.fg_color.clone(), i),
                     ));
-                    safe_left += (self.radius * 0.4);
+                    safe_left += self.radius * 0.4;
                 }
 
                 if let Some(slider) = self.slider.as_mut() {
@@ -306,7 +379,14 @@ impl App for MainApp {
                 }
             }
 
-            AppMessage::Notification(i, title_content, description) => {
+            AppMessage::Notification {
+                title,
+                urgency: _,
+                icon: i,
+                timeout: _,
+                body: description,
+                ..
+            } => {
                 self.clear_content();
 
                 let mut has_desc = false;
@@ -314,19 +394,14 @@ impl App for MainApp {
                 let mut font_size = self.title_text.metrics().font_size;
 
                 if let Some(i) = i {
+                    println!("Has Icon");
                     font_size = self.icon_char.metrics().font_size;
-                    self.icon_char.set_text(
-                        &mut self.fonts,
-                        &i.to_string(),
-                        Attrs::new(),
-                        cosmic_text::Shaping::Advanced,
-                    );
-                    self.icon.replace(Icon::new(
+                    self.icon.replace(IconComponent::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y - font_size)),
                         (self.fg_color.clone(), i),
                     ));
-                    safe_left += (self.radius * 0.3);
+                    safe_left += self.radius * 0.3;
                     max_size_text = 4.0;
                 }
 
@@ -353,7 +428,7 @@ impl App for MainApp {
                 }
                 self.title_text.set_text(
                     &mut self.fonts,
-                    &title_content,
+                    &title,
                     Attrs::new(),
                     cosmic_text::Shaping::Advanced,
                 );
@@ -421,7 +496,7 @@ impl App for MainApp {
             icon.draw(
                 ctx,
                 content_progress,
-                (&mut self.fonts, &mut self.sw_cache, &self.icon_char),
+                (&mut self.fonts, &mut self.sw_cache, &mut self.icon_char),
             );
         }
         if let Some(title) = self.title.as_mut() {

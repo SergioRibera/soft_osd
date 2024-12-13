@@ -2,11 +2,14 @@ use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use zbus::object_server::SignalEmitter;
+use zbus::zvariant::Structure;
 use zbus::{fdo::Result, interface};
 
-use crate::app::AppMessage;
+use crate::app::{AppMessage, Urgency};
+use crate::components::Icon;
 use crate::window::AppTy;
 
 pub struct NotificationIPC<T: AppTy>(pub Arc<Mutex<T>>);
@@ -30,12 +33,12 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
     /// "sound"	The server supports sounds on notifications. If returned, the server must support the "sound-file" and "suppress-sound" hints.
     fn get_capabilities(&self) -> Result<Vec<&'static str>> {
         let capabilities = [
-            //"action-icons",
+            "action-icons",
             "actions",
             "body",
             "body-hyperlinks",
             //"body-markup",
-            //"icon-multi",
+            // "icon-multi",
             "icon-static",
             //"persistence",
             //"sound",
@@ -73,7 +76,10 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
         hints: HashMap<String, zbus::zvariant::Value>,
         expire_timeout: i32,
     ) -> Result<u32> {
-        println!("Notificación recibida: {app_name} - {summary} - {body}");
+        println!(
+            "Notificación recibida: {app_icon}{:?}: {actions:?} => {app_name} - {summary} - {body}",
+            hints.keys()
+        );
         // The spec says that:
         // If `replaces_id` is 0, we should create a fresh id and notification.
         // If `replaces_id` is not 0, we should create a replace the notification with that id,
@@ -98,18 +104,68 @@ impl<T: AppTy + 'static> NotificationIPC<T> {
             replaces_id
         };
 
-        self.0.lock().unwrap().update(AppMessage::Notification(
-            app_icon
-                .is_empty()
-                .not()
-                .then(|| app_icon.chars().next())
-                .flatten(),
-            summary,
-            body.is_empty()
-                .not()
-                .then(|| body.lines().next().map(|l| l.to_owned()))
-                .flatten(),
-        ));
+        let icon: Option<Icon> = app_icon.try_into().ok().or_else(|| {
+            if let Some(Ok(path)) = hints
+                .get("image-path")
+                .or(hints.get("image_path"))
+                .map(|p| p.clone().downcast::<String>())
+            {
+                return path.try_into().ok();
+            }
+            if let Some(data) = hints
+                .get("image-data")
+                .or(hints.get("image_data"))
+                .or(hints.get("icon_data"))
+            {
+                return Icon::from_value(data);
+            }
+            None
+        });
+
+        let timeout = if expire_timeout >= 0 {
+            None
+        } else {
+            Some(Duration::from_millis(expire_timeout as u64))
+        };
+
+        let urgency = hints
+            .get("urgency")
+            .and_then(|u| u.clone().downcast::<u8>().ok())
+            .map(|u| Urgency::from(u))
+            .unwrap_or_default();
+
+        let notification = if let Some(value) = hints
+            .get("value")
+            .and_then(|v| v.clone().downcast::<i32>().ok())
+        {
+            let value = value as f32;
+            let value = f32::clamp(value * 0.01, 0.0, 1.0);
+
+            AppMessage::Slider {
+                icon,
+                value,
+                urgency,
+                timeout,
+                bg: None,
+                fg: None,
+            }
+        } else {
+            AppMessage::Notification {
+                title: summary,
+                icon,
+                timeout,
+                body: body
+                    .is_empty()
+                    .not()
+                    .then(|| body.lines().next().map(|l| l.to_owned()))
+                    .flatten(),
+                urgency,
+                bg: None,
+                fg: None,
+            }
+        };
+
+        self.0.lock().unwrap().update(notification);
 
         // I don't think this is really the right thing to do but given the way it works,
         // when more than one notification arrives it explodes because it is poisoned.

@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::app::Urgency;
+
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum)]
 pub enum OsdPosition {
     #[default]
@@ -45,28 +47,46 @@ pub struct Config {
 pub enum OsdType {
     Daemon,
     Notification {
-        /// Icons for notification
-        #[clap(long, short)]
-        icon: Option<char>,
-        /// Image for notification
-        #[clap(long, short = 'm')]
-        image: Option<String>,
         /// Title to show
         #[clap(long, short)]
         title: String,
+        /// Image for notification, path or char
+        #[clap(long, short = 'm')]
+        image: Option<String>,
+        /// Urgency of notification
+        #[clap(long, short)]
+        urgency: Option<Urgency>,
+        /// Time to show this notification
+        #[clap(long, short)]
+        expire_timeout: Option<i32>,
         /// Description to show
         #[clap(long, short)]
         description: Option<String>,
-        /// Font for text in notifications mode, support: serif, sans-serif, monospace, cursive, fantasy or explicit name of font
-        #[clap(long, short, default_value = "sans-serif")]
-        font: String,
+        /// Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+        #[clap(long, short, default_value = "#000")]
+        background: Option<String>,
+        /// Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+        #[clap(long, short = 'c', default_value = "#FFF")]
+        foreground_color: Option<String>,
     },
     Slider {
         /// Value for slider, from 0 to 100
         #[clap(long, short)]
         value: i32,
-        /// Icons for slider
-        #[clap(long, short, default_value = "󰂭")]
-        icon: char,
+        /// Image for notification, path or char
+        #[clap(long, short = 'm')]
+        image: Option<String>,
+        /// Time to show this notification
+        #[clap(long, short)]
+        expire_timeout: Option<i32>,
+        /// Urgency of notification
+        #[clap(long, short)]
+        urgency: Option<Urgency>,
+        /// Background Color of this notification, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+        #[clap(long, short, default_value = "#000")]
+        background: Option<String>,
+        /// Foreground Color of this notification, support: '#RRGGBBAA', '#RGBA' and '#RGB'
+        #[clap(long, short = 'c', default_value = "#FFF")]
+        foreground_color: Option<String>,
     },
 }

@@ -8,7 +8,7 @@ mod slider;
 mod text;
 
 pub use background::Background;
-pub use icon::Icon;
+pub use icon::{Icon, IconComponent};
 pub use slider::Slider;
 pub use text::Text;
 
