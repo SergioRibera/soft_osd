@@ -137,13 +137,13 @@ impl From<Config> for MainApp {
         let radius = config.radius as f32;
         let half_y = config.height as f32 / 2.0;
         let safe_left = (radius * 2.0) - 20.0;
-        let size = config.height as f32 * 0.15;
+        let size = config.height as f32 * 0.18;
         *ICON_SIZE.write().unwrap() = size;
 
         let mut fonts = FontSystem::new();
         let metrics = Metrics::new(size, size);
         let title_text = Buffer::new(&mut fonts, metrics);
-        let description_text = Buffer::new(&mut fonts, metrics.scale(0.8));
+        let description_text = Buffer::new(&mut fonts, metrics.scale(0.85));
         let icon_char = Buffer::new(&mut fonts, metrics);
 
         let background = Background::new(&config, (None, None), ());
