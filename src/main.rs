@@ -72,10 +72,7 @@ fn get_config(project: &ProjectDirs) -> Option<(PathBuf, Config)> {
         return Some((config_path, config));
     }
     let mut config = Config::default();
-    println!("Config: {config:#?}");
-    println!("Args: {args:#?}");
     config.merge(&mut args);
-    println!("Config: {config:#?}");
 
     Some((config_path, config))
 }

@@ -18,7 +18,7 @@ impl<T: AppTy + 'static> MainAppIPC<T> {
     }
     async fn slider(
         &self,
-        urgency: i8,
+        urgency: u8,
         value: i32,
         icon: String,
         timeout: i32,
@@ -69,7 +69,7 @@ pub trait MainAppIPCSingletone {
     async fn close(&self) -> Result<()>;
     async fn slider(
         &self,
-        urgency: i8,
+        urgency: u8,
         value: i32,
         icon: String,
         timeout: i32,

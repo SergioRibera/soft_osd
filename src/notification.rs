@@ -21,26 +21,6 @@ impl From<u8> for Urgency {
     }
 }
 
-impl From<i8> for Urgency {
-    fn from(value: i8) -> Self {
-        match value {
-            0 => Urgency::Low,
-            2 => Urgency::Critical,
-            _ => Urgency::Normal,
-        }
-    }
-}
-
-impl From<Urgency> for i8 {
-    fn from(value: Urgency) -> Self {
-        match value {
-            Urgency::Low => 0,
-            Urgency::Normal => 1,
-            Urgency::Critical => 2,
-        }
-    }
-}
-
 impl From<Urgency> for u8 {
     fn from(value: Urgency) -> Self {
         match value {
