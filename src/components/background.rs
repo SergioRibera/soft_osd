@@ -1,7 +1,8 @@
 use raqote::*;
 
-use crate::config::{Config, OsdPosition};
 use crate::utils::ToColor;
+
+use config::{Config, OsdPosition};
 
 use super::Component;
 

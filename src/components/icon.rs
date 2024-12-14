@@ -1,13 +1,13 @@
+use std::path::PathBuf;
+
+use config::OsdPosition;
 use cosmic_text::{Attrs, Buffer, Color, FontSystem, Shaping, SwashCache};
 use image::imageops::resize;
 use image::{Rgba, RgbaImage};
 use raqote::{DrawOptions, DrawTarget, SolidSource, Source};
-
-use std::path::PathBuf;
 use zbus::zvariant::{Structure, Value};
 
 use crate::app::ICON_SIZE;
-use crate::config::OsdPosition;
 
 use super::Component;
 
@@ -125,7 +125,7 @@ impl<'a> Component<'a> for IconComponent {
     type DrawArgs = (&'a mut FontSystem, &'a mut SwashCache, &'a mut Buffer);
 
     fn new(
-        config: &crate::config::Config,
+        config: &config::Config,
         (x, y): (Option<f32>, Option<f32>),
         (c, icon): Self::Args,
     ) -> Self {

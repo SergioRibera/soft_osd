@@ -1,6 +1,7 @@
 use raqote::{DrawOptions, Path, PathBuilder, SolidSource, Source};
 
-use crate::config::OsdPosition;
+use config::OsdPosition;
+
 use crate::utils::{lighten_color, ToColor};
 
 use super::Component;
@@ -82,7 +83,7 @@ impl Component<'_> for Slider {
     type DrawArgs = ();
 
     fn new(
-        config: &crate::config::Config,
+        config: &config::Config,
         (x, y): (Option<f32>, Option<f32>),
         (value, size_mul): Self::Args,
     ) -> Self {

@@ -27,10 +27,8 @@ use wayland_client::{
     Connection, Dispatch, QueueHandle,
 };
 
-use crate::{
-    app::{App, AppMessage},
-    config::{Config, OsdPosition},
-};
+use crate::app::{App, AppMessage};
+use config::{Config, OsdPosition};
 
 pub(crate) trait AppTy: App + Sized + Send + Sync {}
 
@@ -84,7 +82,7 @@ fn set_pos(
 impl<T: AppTy + 'static> Window<T> {
     pub fn run(render: Arc<Mutex<T>>, config: Config) {
         let Config { window, .. } = &config;
-        let crate::config::Window {
+        let config::Window {
             position,
             width,
             height,

@@ -1,6 +1,6 @@
 use raqote::DrawTarget;
 
-use crate::config::Config;
+use config::Config;
 
 mod background;
 mod icon;

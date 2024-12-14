@@ -3,13 +3,12 @@ use std::ops::Not;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
 
+use config::Urgency;
 use zbus::object_server::SignalEmitter;
-
 use zbus::{fdo::Result, interface};
 
 use crate::app::AppMessage;
 use crate::components::Icon;
-use crate::notification::Urgency;
 use crate::window::AppTy;
 
 pub struct NotificationIPC<T: AppTy>(pub Arc<Mutex<T>>);

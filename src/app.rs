@@ -1,12 +1,11 @@
 use std::sync::RwLock;
 use std::time::Instant;
 
+use config::{Config, Urgency, UrgencyConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
 
 use crate::components::{Background, Component, Icon, IconComponent, Slider, Text};
-use crate::config::{Config, UrgencyConfig};
-use crate::notification::Urgency;
 use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {

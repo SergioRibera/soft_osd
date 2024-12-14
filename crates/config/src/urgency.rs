@@ -1,7 +1,7 @@
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::config::{Config, UrgencyConfig};
+use crate::{Config, UrgencyConfig};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 pub enum Urgency {

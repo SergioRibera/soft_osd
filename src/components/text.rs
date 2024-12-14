@@ -3,7 +3,7 @@ use raqote::{DrawOptions, DrawTarget, PathBuilder, SolidSource, Source};
 
 use std::time::Instant;
 
-use crate::config::OsdPosition;
+use config::OsdPosition;
 
 use super::Component;
 
@@ -25,7 +25,7 @@ impl<'a> Component<'a> for Text {
     type DrawArgs = (&'a mut FontSystem, &'a mut SwashCache, &'a Buffer);
 
     fn new(
-        config: &crate::config::Config,
+        config: &config::Config,
         (x, y): (Option<f32>, Option<f32>),
         (font_size, text_width, max_size, color): Self::Args,
     ) -> Self {

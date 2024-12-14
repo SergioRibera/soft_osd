@@ -4,14 +4,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use merge2::Merge;
 use serde::{Deserialize, Serialize};
 
-use crate::notification::Urgency;
-
-#[inline]
-pub fn swap_option<T>(left: &mut Option<T>, right: &mut Option<T>) {
-    if left.is_none() || right.is_some() {
-        core::mem::swap(left, right);
-    }
-}
+use crate::{swap_option, Urgency};
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum, Serialize, Deserialize)]
 pub enum OsdPosition {
@@ -47,7 +40,7 @@ pub struct Config {
 
     #[clap(subcommand)]
     #[serde(skip)]
-    #[merge(skip)]
+    #[merge(strategy = merge2::any::overwrite)]
     pub command: OsdType,
 }
 

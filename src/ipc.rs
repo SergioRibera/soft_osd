@@ -7,8 +7,8 @@ pub use notification::*;
 pub use sosd::*;
 use zbus::connection::Builder;
 
-use crate::config::{Global, OsdType};
 use crate::window::AppTy;
+use config::{Global, OsdType};
 
 pub const APP_ID: &str = "rs.sergioribera.sosd";
 pub const APP_PATH: &str = "/rs/sergioribera/sosd";
