@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use zbus::Connection;
 
-use crate::ServiceResult;
+use crate::Result;
 
 use self::bluez::get_bluez_batteries;
 use self::sys::get_batteries;
@@ -59,7 +59,7 @@ pub struct BatteryManager {
 
 impl BatteryManager {
     /// Create a new BatteryManager
-    pub async fn new() -> ServiceResult<Self> {
+    pub async fn new() -> Result<Self> {
         let mut manager = BatteryManager {
             batteries: Vec::new(),
             connection: Connection::system().await?,
@@ -73,7 +73,7 @@ impl BatteryManager {
     }
 
     /// Refresh battery states
-    pub async fn refresh(&mut self) -> ServiceResult<()> {
+    pub async fn refresh(&mut self) -> Result<()> {
         let mut batteries = get_batteries()?;
 
         if let Ok(bluez_bats) = get_bluez_batteries(&self.connection).await {
