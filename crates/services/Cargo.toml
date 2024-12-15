@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 serde.workspace = true
 serde_plain = "1.0.2"
+zbus.workspace = true
+tokio.workspace = true

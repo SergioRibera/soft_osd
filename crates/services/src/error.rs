@@ -6,6 +6,7 @@ use std::num::ParseIntError;
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
+    Zbus(zbus::Error),
     ParseError(ParseIntError),
     InvalidBatteryState(String),
     MissingBatteryField(String),
@@ -14,13 +15,14 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::IoError(e) => write!(f, "I/O Error: {}", e),
-            Error::ParseError(e) => write!(f, "Parse Error: {}", e),
+            Error::IoError(e) => write!(f, "I/O Error: {e}"),
+            Error::ParseError(e) => write!(f, "Parse Error: {e}"),
+            Error::Zbus(e) => write!(f, "Zbus Error: {e}"),
             Error::InvalidBatteryState(state) => {
-                write!(f, "Invalid Battery State: {}", state)
+                write!(f, "Invalid Battery State: {state}")
             }
             Error::MissingBatteryField(field) => {
-                write!(f, "Missing Battery Field: {}", field)
+                write!(f, "Missing Battery Field: {field}")
             }
         }
     }
@@ -29,6 +31,12 @@ impl fmt::Display for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::IoError(err)
+    }
+}
+
+impl From<zbus::Error> for Error {
+    fn from(err: zbus::Error) -> Self {
+        Error::Zbus(err)
     }
 }
 

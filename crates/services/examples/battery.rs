@@ -3,8 +3,10 @@ use std::time::Duration;
 
 use services::BatteryManager;
 
-fn main() {
-    let mut manager = BatteryManager::new().unwrap();
+#[tokio::main]
+async fn main() {
+    // this support bluetooth too
+    let mut manager = BatteryManager::new().await.unwrap();
 
     loop {
         for bat in manager.all() {
@@ -15,10 +17,11 @@ fn main() {
                 bat.state(),
                 bat.level()
             );
-            println!("{}", "-".repeat(12))
+            println!("{}", "-".repeat(12));
         }
+        println!("{}", "#".repeat(20));
 
         sleep(Duration::from_secs(5));
-        manager.refresh().unwrap();
+        manager.refresh().await.unwrap();
     }
 }
