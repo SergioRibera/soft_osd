@@ -1202,6 +1202,9 @@ dependencies = [
 name = "services"
 version = "0.1.0"
 dependencies = [
+ "config",
+ "image",
+ "raqote_svg",
  "serde",
  "serde_plain",
  "tokio",
@@ -1315,7 +1318,6 @@ dependencies = [
  "cosmic-text",
  "image",
  "raqote",
- "raqote_svg",
  "smithay-client-toolkit",
  "tokio",
  "wayland-client",

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use zbus::Connection;
 
 use crate::Result;
@@ -25,10 +27,10 @@ pub enum BatteryState {
 }
 
 /// Battery Struct
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Battery {
     pub(crate) level: u8,
-    pub(crate) name: String,
+    pub(crate) name: Arc<str>,
     pub(crate) state: BatteryState,
     pub(crate) path: Option<PathBuf>,
 }
@@ -53,49 +55,55 @@ impl Battery {
 
 /// Battery Manager Struct
 pub struct BatteryManager {
-    batteries: Vec<Battery>,
+    batteries: RefCell<Vec<Battery>>,
     connection: Connection,
 }
 
 impl BatteryManager {
     /// Create a new BatteryManager
     pub async fn new() -> Result<Self> {
-        let mut manager = BatteryManager {
-            batteries: Vec::new(),
+        let manager = BatteryManager {
+            batteries: RefCell::new(Vec::with_capacity(4)),
             connection: Connection::system().await?,
         };
         manager.refresh().await?;
         Ok(manager)
     }
 
-    pub fn all(&self) -> &[Battery] {
-        &self.batteries
+    pub fn all(&self) -> Vec<Battery> {
+        self.batteries.borrow().clone()
     }
 
     /// Refresh battery states
-    pub async fn refresh(&mut self) -> Result<()> {
+    pub async fn refresh(&self) -> Result<()> {
         let mut batteries = get_batteries()?;
 
         if let Ok(bluez_bats) = get_bluez_batteries(&self.connection).await {
             batteries.extend(bluez_bats);
         }
 
-        self.batteries = batteries;
+        self.batteries.replace(batteries);
         Ok(())
     }
 
     /// Get batteries below a certain level
-    pub fn batteries_below(&self, level: u8) -> Vec<&Battery> {
+    pub fn batteries_below(&self, level: u8) -> Vec<Battery> {
         self.batteries
+            .borrow()
             .iter()
             .filter(|b| b.level() < level)
+            .cloned()
             .collect()
     }
 
     /// Get battery by name or path
-    pub fn battery_by_name(&self, name: &str) -> Option<&Battery> {
-        self.batteries.iter().find(|b| {
-            b.name() == name || b.path().and_then(|b| b.to_str()).is_some_and(|b| b == name)
-        })
+    pub fn battery_by_name(&self, name: &str) -> Option<Battery> {
+        let borrow = self.batteries.borrow();
+        borrow
+            .iter()
+            .find(|b| {
+                b.name() == name || b.path().and_then(|b| b.to_str()).is_some_and(|b| b == name)
+            })
+            .cloned()
     }
 }

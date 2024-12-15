@@ -31,7 +31,6 @@ config = { version = "0.1.0", path = "crates/config" }
 cosmic-text = "0.12.1"
 image.workspace = true
 raqote.workspace = true
-raqote_svg = { version = "0.1.0", path = "crates/raqote_svg", features = ["image"] }
 smithay-client-toolkit = "0.19.2"
 wayland-client = "0.31.7"
 tokio.workspace = true

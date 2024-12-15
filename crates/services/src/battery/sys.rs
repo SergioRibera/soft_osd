@@ -38,7 +38,9 @@ fn read_battery_dir(dir: &Path) -> Result<Battery> {
     Ok(Battery {
         level,
         path: Some(dir.to_path_buf()),
-        name: read_battery_file(dir, "model_name").unwrap_or_else(|_| "Unknown".to_owned()),
+        name: read_battery_file(dir, "model_name")
+            .unwrap_or_else(|_| "Unknown".to_owned())
+            .into(),
         state: name_to_battery_state(&read_battery_file(dir, "status")?)?,
     })
 }

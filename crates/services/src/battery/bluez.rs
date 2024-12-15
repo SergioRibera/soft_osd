@@ -39,7 +39,7 @@ pub async fn get_bluez_batteries(conn: &Connection) -> Result<Vec<Battery>, Erro
             println!("Icon: {icon}");
             Some(Battery {
                 level,
-                name,
+                name: name.into(),
                 // idk how get status, but I can assume is discharging
                 state: BatteryState::Discharging,
                 // not have Path, right?
