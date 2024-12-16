@@ -2,16 +2,15 @@ mod battery;
 pub mod error;
 mod notification;
 
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+pub use battery::*;
 pub use error::Error;
 pub use notification::{Icon, Notification};
 use tokio::time::sleep;
 pub use zbus;
 
-use battery::*;
 use notification::{NotificationIPC, NotificationIPCSignals};
 
 use zbus::connection::Builder;
@@ -20,8 +19,8 @@ use zbus::Connection;
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait ServiceReceive {
-    fn new(&mut self, broadcast: ServiceBroadcast) -> Self;
-    fn batteries_below(&self, batteries: &[Battery]);
+    fn set_broadcast(&mut self, broadcast: ServiceBroadcast);
+    fn batteries_below(&self, level: u8, batteries: &[Battery]);
 }
 
 // This send to app to call actions who is hear by this crate
@@ -65,7 +64,7 @@ impl<T: Notification + ServiceReceive + 'static> ServiceManager<T> {
             .unwrap();
 
         let actionable = ServiceBroadcast { notification };
-        receiver.lock().unwrap().new(actionable);
+        receiver.lock().unwrap().set_broadcast(actionable);
         receiver.clear_poison(); // probably not needed, but its for prevent
 
         Self {
@@ -98,17 +97,15 @@ impl<T: Notification + ServiceReceive + 'static> ServiceManager<T> {
     pub async fn run(&self) {
         loop {
             if let Some(battery) = self.battery.as_ref() {
-                let batteries_bellow = self
-                    .battery_levels
-                    .iter()
-                    .map(|l| battery.batteries_below(*l))
-                    .flatten()
-                    .collect::<Vec<Battery>>();
-                if !batteries_bellow.is_empty() {
-                    if let Ok(receiver) = self.receiver.lock() {
-                        receiver.batteries_below(&batteries_bellow);
+                let Ok(receiver) = self.receiver.lock() else {
+                    continue;
+                };
+                self.battery_levels.iter().for_each(|l| {
+                    let batteries_below = battery.batteries_below(*l);
+                    if !batteries_below.is_empty() {
+                        receiver.batteries_below(*l, &batteries_below);
                     }
-                }
+                });
             }
             sleep(self.refresh_time).await;
             if let Some(battery) = self.battery.as_ref() {

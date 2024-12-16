@@ -71,7 +71,7 @@ impl<T: Notification + 'static> NotificationIPC<T> {
             "Notificación recibida: {app_icon}{:?}: {actions:?} => {app_name} - {summary} - {body}",
             hints.keys()
         );
-        let inner = self.0.lock().unwrap();
+        let mut inner = self.0.lock().unwrap();
         let icon_size = inner.get_icon_size();
         // The spec says that:
         // If `replaces_id` is 0, we should create a fresh id and notification.

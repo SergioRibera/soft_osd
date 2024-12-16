@@ -82,6 +82,7 @@ impl BatteryManager {
             batteries.extend(bluez_bats);
         }
 
+        batteries.sort_by_key(|b| b.level());
         self.batteries.replace(batteries);
         Ok(())
     }

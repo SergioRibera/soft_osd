@@ -37,7 +37,7 @@ pub trait Notification {
     }
 
     fn notify(
-        &self,
+        &mut self,
         id: u32,
         summary: String,
         icon: Option<Icon>,
@@ -48,5 +48,5 @@ pub trait Notification {
         expire_timeout: Option<i32>,
     ) -> Result<u32>;
 
-    fn close_notification(&self, id: u32) -> Result<()>;
+    fn close_notification(&mut self, id: u32) -> Result<()>;
 }
