@@ -1,6 +1,5 @@
-use std::cell::RefCell;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use zbus::Connection;
 
 use crate::Result;
@@ -52,7 +51,7 @@ impl Battery {
 
 /// Battery Manager Struct
 pub struct BatteryManager {
-    batteries: RefCell<Vec<Battery>>,
+    batteries: RwLock<Vec<Battery>>,
     connection: Connection,
 }
 
@@ -60,7 +59,7 @@ impl BatteryManager {
     /// Create a new BatteryManager
     pub async fn new() -> Result<Self> {
         let manager = BatteryManager {
-            batteries: RefCell::new(Vec::with_capacity(4)),
+            batteries: RwLock::new(Vec::with_capacity(4)),
             connection: Connection::system().await?,
         };
         manager.refresh().await?;
@@ -68,7 +67,7 @@ impl BatteryManager {
     }
 
     pub fn all(&self) -> Vec<Battery> {
-        self.batteries.borrow().clone()
+        self.batteries.read().unwrap().clone()
     }
 
     /// Refresh battery states
@@ -80,14 +79,15 @@ impl BatteryManager {
         }
 
         batteries.sort_by_key(|b| b.level());
-        self.batteries.replace(batteries);
+        *self.batteries.write().unwrap() = batteries;
         Ok(())
     }
 
     /// Get batteries below a certain level
     pub fn batteries_below(&self, level: u8) -> Vec<Battery> {
         self.batteries
-            .borrow()
+            .read()
+            .unwrap()
             .iter()
             .filter(|b| b.level() < level)
             .cloned()
@@ -96,7 +96,7 @@ impl BatteryManager {
 
     /// Get battery by name or path
     pub fn battery_by_name(&self, name: &str) -> Option<Battery> {
-        let borrow = self.batteries.borrow();
+        let borrow = self.batteries.read().unwrap();
         borrow
             .iter()
             .find(|b| {
