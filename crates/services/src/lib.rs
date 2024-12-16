@@ -1,41 +1,55 @@
 mod battery;
-pub mod error;
 mod notification;
+mod singletone;
 
+pub mod error;
+
+use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tokio::time::sleep;
+use zbus::connection::Builder;
+use zbus::Connection;
 
 pub use battery::*;
 pub use error::Error;
 pub use notification::{Icon, Notification};
-use tokio::time::sleep;
+pub use singletone::SingletoneListener;
 pub use zbus;
 
 use notification::{NotificationIPC, NotificationIPCSignals};
+use singletone::{SingletoneClientProxy, SingletoneServer};
 
-use zbus::connection::Builder;
-use zbus::Connection;
+use self::singletone::GenericMessage;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub trait ServiceReceive {
-    fn set_broadcast(&mut self, broadcast: ServiceBroadcast);
+pub trait ServiceReceive<'a> {
+    fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>);
     fn batteries_below(&self, level: u8, batteries: &[Battery]);
 }
 
 // This send to app to call actions who is hear by this crate
-pub struct ServiceBroadcast {
+#[derive(Clone)]
+pub struct ServiceBroadcast<'a> {
     notification: Connection,
+    singletone: Option<SingletoneClientProxy<'a>>,
 }
 
-pub struct ServiceManager<T: Notification + ServiceReceive> {
+pub struct ServiceManager<'a, T, Message>
+where
+    T: Notification + ServiceReceive<'a>,
+{
+    broadcast: ServiceBroadcast<'a>,
     battery: Option<BatteryManager>,
     refresh_time: Duration,
     battery_levels: Vec<u8>,
     receiver: Arc<Mutex<T>>,
+    _msg: PhantomData<Message>,
 }
 
-impl ServiceBroadcast {
+impl<'a> ServiceBroadcast<'a> {
     pub async fn notify_action<T: Notification + 'static>(&self, id: u32, action: &str) {
         self.notification
             .object_server()
@@ -48,7 +62,11 @@ impl ServiceBroadcast {
     }
 }
 
-impl<T: Notification + ServiceReceive + 'static> ServiceManager<T> {
+impl<'a, T, Message> ServiceManager<'a, T, Message>
+where
+    T: Notification + ServiceReceive<'a> + SingletoneListener<Message> + 'static,
+    Message: Serialize + Deserialize<'static> + Send + Sync + 'static,
+{
     pub async fn new(receiver: Arc<Mutex<T>>) -> Self {
         let notification = Builder::session()
             .unwrap()
@@ -63,15 +81,20 @@ impl<T: Notification + ServiceReceive + 'static> ServiceManager<T> {
             .await
             .unwrap();
 
-        let actionable = ServiceBroadcast { notification };
-        receiver.lock().unwrap().set_broadcast(actionable);
+        let broadcast = ServiceBroadcast {
+            notification,
+            singletone: None,
+        };
+        receiver.lock().unwrap().set_broadcast(broadcast.clone());
         receiver.clear_poison(); // probably not needed, but its for prevent
 
         Self {
-            battery: None,
             receiver,
+            broadcast,
+            battery: None,
             battery_levels: Vec::new(),
             refresh_time: Duration::from_secs_f32(5.0),
+            _msg: PhantomData::default(),
         }
     }
 
@@ -112,5 +135,47 @@ impl<T: Notification + ServiceReceive + 'static> ServiceManager<T> {
                 _ = battery.refresh().await;
             }
         }
+    }
+
+    pub async fn send(&self, msg: Message) -> Result<()> {
+        if let Some(singletone) = self.broadcast.singletone.as_ref() {
+            let msg = bincode::serialize(&GenericMessage(msg))?;
+            return singletone.process_message(msg).await;
+        }
+
+        Err(Error::SingletoneNotCreated)
+    }
+
+    pub async fn with_singletone(self) -> Result<Self> {
+        let server = SingletoneServer(self.receiver.clone(), PhantomData::default());
+        let server_conn = Builder::session()?
+            .name("rs.sergioribera.sosd")?
+            .serve_at("/rs/sergioribera/sosd", server)?
+            .build()
+            .await;
+
+        if let Err(zbus::Error::NameTaken) = server_conn {
+            let conn = Connection::session().await.unwrap();
+            let ipc = SingletoneClientProxy::new(&conn).await?;
+
+            return Ok(Self {
+                broadcast: ServiceBroadcast {
+                    singletone: Some(ipc),
+                    ..self.broadcast
+                },
+                ..self
+            });
+        }
+
+        let conn = server_conn?;
+        let ipc = SingletoneClientProxy::new(&conn).await?;
+
+        Ok(Self {
+            broadcast: ServiceBroadcast {
+                singletone: Some(ipc),
+                ..self.broadcast
+            },
+            ..self
+        })
     }
 }

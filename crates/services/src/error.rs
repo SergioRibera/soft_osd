@@ -7,10 +7,17 @@ use std::num::ParseIntError;
 pub enum Error {
     IoError(io::Error),
     Zbus(zbus::Error),
+    ZbusFdo(zbus::fdo::Error),
     Icon(IconError),
+    Serialization(bincode::Error),
     ParseError(ParseIntError),
     InvalidBatteryState(String),
     MissingBatteryField(String),
+
+    // Singletone
+    ServerNotRunning,
+    AredyExistsSingletone,
+    SingletoneNotCreated,
 }
 
 #[derive(Debug)]
@@ -27,13 +34,23 @@ impl fmt::Display for Error {
             Error::IoError(e) => write!(f, "I/O Error: {e}"),
             Error::ParseError(e) => write!(f, "Parse Error: {e}"),
             Error::Zbus(e) => write!(f, "Zbus Error: {e}"),
+            Error::ZbusFdo(e) => write!(f, "Zbus fdo Error: {e}"),
             Error::InvalidBatteryState(state) => {
                 write!(f, "Invalid Battery State: {state}")
             }
             Error::MissingBatteryField(field) => {
                 write!(f, "Missing Battery Field: {field}")
             }
-            Error::Icon(e) => write!(f, "{e}"),
+            Error::Serialization(e) => write!(f, "Error with bincode: {e}"),
+            Error::Icon(e) => write!(f, "Error to handle Icon: {e}"),
+
+            // Singletone
+            Error::ServerNotRunning => write!(
+                f,
+                "The Singletone Server is not running and you try send message to this"
+            ),
+            Error::AredyExistsSingletone => write!(f, "Alredy exists a singletone instance"),
+            Error::SingletoneNotCreated => write!(f, "You dont create a instance of singletone"),
         }
     }
 }
@@ -64,6 +81,18 @@ impl From<zbus::Error> for Error {
 impl From<ParseIntError> for Error {
     fn from(err: ParseIntError) -> Self {
         Self::ParseError(err)
+    }
+}
+
+impl From<zbus::fdo::Error> for Error {
+    fn from(err: zbus::fdo::Error) -> Self {
+        Self::ZbusFdo(err)
+    }
+}
+
+impl From<bincode::Error> for Error {
+    fn from(err: bincode::Error) -> Self {
+        Self::Serialization(err)
     }
 }
 

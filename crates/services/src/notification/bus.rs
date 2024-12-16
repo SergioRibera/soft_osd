@@ -58,7 +58,7 @@ impl<T: Notification + 'static> NotificationIPC<T> {
     /// If -1, the notification's expiration time is dependent on the notification server's settings, and may vary for the type of notification. If 0, never expire.
     fn notify(
         &self,
-        app_name: String,
+        _app_name: String,
         replaces_id: u32,
         app_icon: String,
         summary: String,
@@ -67,10 +67,6 @@ impl<T: Notification + 'static> NotificationIPC<T> {
         hints: HashMap<String, zbus::zvariant::Value>,
         expire_timeout: i32,
     ) -> Result<u32> {
-        println!(
-            "Notificación recibida: {app_icon}{:?}: {actions:?} => {app_name} - {summary} - {body}",
-            hints.keys()
-        );
         let mut inner = self.0.lock().unwrap();
         let icon_size = inner.get_icon_size();
         // The spec says that:
