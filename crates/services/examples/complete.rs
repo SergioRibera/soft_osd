@@ -1,14 +1,17 @@
 use std::sync::{Arc, Mutex};
 
-use services::{zbus, Battery, Notification, ServiceBroadcast, ServiceManager, ServiceReceive};
+use services::{
+    zbus, Battery, Notification, ServiceBroadcast, ServiceManager, ServiceReceive,
+    SingletoneListener,
+};
 
 #[derive(Default)]
-struct App {
-    broadcast: Option<ServiceBroadcast>,
+struct App<'a> {
+    broadcast: Option<ServiceBroadcast<'a>>,
     notifications: Vec<u32>,
 }
 
-impl Notification for App {
+impl<'a> Notification for App<'a> {
     fn notify(
         &mut self,
         id: u32,
@@ -32,20 +35,26 @@ impl Notification for App {
     }
 }
 
-impl ServiceReceive for App {
-    fn batteries_below(&self, level: u8, batteries: &[Battery]) {
+impl<'a> ServiceReceive<'a> for App<'a> {
+    fn batteries_below(&mut self, level: u8, batteries: &[Battery]) {
         println!("Oh no, batteries are below of {level}: {batteries:?}");
     }
 
-    fn set_broadcast(&mut self, broadcast: ServiceBroadcast) {
+    fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>) {
         self.broadcast.replace(broadcast);
+    }
+}
+
+impl<'a> SingletoneListener<()> for App<'a> {
+    fn on_message(&mut self, msg: ()) {
+        println!("Message: {msg:?}");
     }
 }
 
 #[tokio::main]
 async fn main() {
     let receiver = Arc::new(Mutex::new(App::default()));
-    let manager = ServiceManager::new(receiver)
+    let manager = ServiceManager::new(true, receiver)
         .await
         .with_battery(true, 5.0, vec![80, 50, 30, 15])
         .await

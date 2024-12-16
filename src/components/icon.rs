@@ -1,13 +1,7 @@
-use std::path::PathBuf;
-
 use config::OsdPosition;
 use cosmic_text::{Attrs, Buffer, Color, FontSystem, Shaping, SwashCache};
-use image::imageops::resize;
-use image::{Rgba, RgbaImage};
 use raqote::{DrawOptions, DrawTarget, SolidSource, Source};
-use zbus::zvariant::{Structure, Value};
-
-use crate::app::ICON_SIZE;
+use services::Icon;
 
 use super::Component;
 

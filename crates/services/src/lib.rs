@@ -27,13 +27,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait ServiceReceive<'a> {
     fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>);
-    fn batteries_below(&self, level: u8, batteries: &[Battery]);
+    fn batteries_below(&mut self, level: u8, batteries: &[Battery]);
 }
 
 // This send to app to call actions who is hear by this crate
 #[derive(Clone)]
 pub struct ServiceBroadcast<'a> {
-    notification: Connection,
+    notification: Option<Connection>,
     singletone: Option<SingletoneClientProxy<'a>>,
 }
 
@@ -41,6 +41,7 @@ pub struct ServiceManager<'a, T, Message>
 where
     T: Notification + ServiceReceive<'a>,
 {
+    is_daemon: bool,
     broadcast: ServiceBroadcast<'a>,
     battery: Option<BatteryManager>,
     refresh_time: Duration,
@@ -51,7 +52,11 @@ where
 
 impl<'a> ServiceBroadcast<'a> {
     pub async fn notify_action<T: Notification + 'static>(&self, id: u32, action: &str) {
-        self.notification
+        let Some(notification) = self.notification.as_ref() else {
+            return;
+        };
+
+        notification
             .object_server()
             .interface::<_, NotificationIPC<T>>("/org/freedesktop/Notifications")
             .await
@@ -67,7 +72,7 @@ where
     T: Notification + ServiceReceive<'a> + SingletoneListener<Message> + 'static,
     Message: Serialize + Deserialize<'static> + Send + Sync + 'static,
 {
-    pub async fn new(receiver: Arc<Mutex<T>>) -> Self {
+    pub async fn new(is_daemon: bool, receiver: Arc<Mutex<T>>) -> Self {
         let notification = Builder::session()
             .unwrap()
             .name("org.freedesktop.Notifications")
@@ -78,11 +83,14 @@ where
             )
             .unwrap()
             .build()
-            .await
-            .unwrap();
+            .await;
 
         let broadcast = ServiceBroadcast {
-            notification,
+            notification: if is_daemon {
+                Some(notification.unwrap())
+            } else {
+                notification.ok()
+            },
             singletone: None,
         };
         receiver.lock().unwrap().set_broadcast(broadcast.clone());
@@ -90,6 +98,7 @@ where
 
         Self {
             receiver,
+            is_daemon,
             broadcast,
             battery: None,
             battery_levels: Vec::new(),
@@ -104,7 +113,7 @@ where
         refresh_time: f32,
         levels: Vec<u8>,
     ) -> Result<Self> {
-        let battery = if enable {
+        let battery = if enable && self.is_daemon {
             Some(BatteryManager::new().await?)
         } else {
             None
@@ -120,7 +129,7 @@ where
     pub async fn run(&self) {
         loop {
             if let Some(battery) = self.battery.as_ref() {
-                let Ok(receiver) = self.receiver.lock() else {
+                let Ok(mut receiver) = self.receiver.lock() else {
                     continue;
                 };
                 self.battery_levels.iter().for_each(|l| {

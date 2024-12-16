@@ -1,11 +1,14 @@
 use std::sync::RwLock;
 use std::time::Instant;
 
+use ::services::{Icon, ServiceBroadcast};
 use config::{Config, Urgency, UrgencyConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
 
-use crate::components::{Background, Component, Icon, IconComponent, Slider, Text};
+mod services;
+
+use crate::components::{Background, Component, IconComponent, Slider, Text};
 use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
@@ -36,7 +39,9 @@ pub enum AppMessage {
     },
 }
 
-pub struct MainApp {
+pub struct MainApp<'a> {
+    broadcast: Option<ServiceBroadcast<'a>>,
+
     fonts: FontSystem,
     sw_cache: SwashCache,
     title_text: Buffer,
@@ -78,7 +83,7 @@ enum WindowState {
 
 pub static ICON_SIZE: RwLock<f32> = RwLock::new(12.0);
 
-impl From<Config> for MainApp {
+impl<'a> From<Config> for MainApp<'a> {
     fn from(config: Config) -> Self {
         let show_duration = config.globals.show_duration.unwrap_or(5.0);
         let window = config.window.clone().unwrap_or_default();
@@ -97,6 +102,8 @@ impl From<Config> for MainApp {
         let background = Background::new(&config, (None, None), ());
 
         Self {
+            broadcast: None,
+
             fonts,
             icon_char,
             title_text,
@@ -121,7 +128,7 @@ impl From<Config> for MainApp {
     }
 }
 
-impl MainApp {
+impl<'a> MainApp<'a> {
     fn clear_content(&mut self) {
         self.icon = None;
         self.title = None;
@@ -251,7 +258,7 @@ impl MainApp {
     }
 }
 
-impl App for MainApp {
+impl<'a> App for MainApp<'a> {
     fn show(&self) -> bool {
         if matches!(self.window_state, WindowState::Hidden)
             && matches!(self.content_state, ContentState::Idle)

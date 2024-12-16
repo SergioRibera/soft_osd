@@ -43,7 +43,7 @@ impl<'a> Notification for App<'a> {
 }
 
 impl<'a> ServiceReceive<'a> for App<'a> {
-    fn batteries_below(&self, level: u8, batteries: &[Battery]) {
+    fn batteries_below(&mut self, level: u8, batteries: &[Battery]) {
         println!("Oh no, batteries are below of {level}: {batteries:?}");
     }
 
@@ -53,7 +53,7 @@ impl<'a> ServiceReceive<'a> for App<'a> {
 }
 
 impl<'a> SingletoneListener<AppMessage> for App<'a> {
-    fn on_message(&self, msg: AppMessage) {
+    fn on_message(&mut self, msg: AppMessage) {
         println!("Message: {msg:?}");
     }
 }
@@ -62,7 +62,7 @@ impl<'a> SingletoneListener<AppMessage> for App<'a> {
 async fn main() {
     let receiver = Arc::new(Mutex::new(App::default()));
     let manager = Arc::new(
-        ServiceManager::new(receiver)
+        ServiceManager::new(true, receiver)
             .await
             .with_battery(true, 5.0, vec![80, 50, 30, 15])
             .await

@@ -3,12 +3,12 @@ use std::sync::{Arc, Mutex};
 
 mod app;
 mod components;
-mod ipc;
 mod utils;
 mod window;
 
 use app::MainApp;
 use config::{get_config, write_default, Config, OsdType, Parser, ProjectDirs};
+use services::ServiceManager;
 use window::Window;
 
 const PROJECT_PATH: OnceCell<ProjectDirs> = OnceCell::new();
@@ -32,8 +32,29 @@ async fn main() {
     {
         let app = app.clone();
         let command = config.command.clone();
+        let is_daemon = command == OsdType::Daemon;
         let global = config.globals.clone();
-        tokio::spawn(async move { ipc::connect(&global, &command, app).await });
+        let manager = ServiceManager::new(is_daemon, app)
+            .await
+            .with_battery(true, 5.0, Vec::new())
+            .await
+            .unwrap()
+            .with_singletone()
+            .await
+            .unwrap();
+
+        if is_daemon {
+            tokio::spawn(async move {
+                manager.run().await;
+                std::thread::park();
+            });
+        } else {
+            manager
+                .send((global.background, global.foreground_color, command))
+                .await
+                .unwrap();
+            return;
+        }
     }
     Window::run(app, config)
 }

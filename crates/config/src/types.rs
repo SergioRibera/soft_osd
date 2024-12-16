@@ -97,7 +97,7 @@ pub struct UrgencyConfig {
     pub foreground_color: Option<String>,
 }
 
-#[derive(Subcommand, Default, Debug, Clone, PartialEq)]
+#[derive(Subcommand, Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OsdType {
     #[default]
     Daemon,

@@ -35,3 +35,5 @@ smithay-client-toolkit = "0.19.2"
 wayland-client = "0.31.7"
 tokio.workspace = true
 zbus.workspace = true
+serde.workspace = true
+services = { version = "0.1.0", path = "crates/services" }
