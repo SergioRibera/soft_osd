@@ -15,7 +15,16 @@ fn read_battery_file(dir: &Path, file: &str) -> Result<String> {
 
 /// Parse a battery state name into BatteryState
 fn name_to_battery_state(name: &str) -> Result<BatteryState> {
-    serde_plain::from_str(name).map_err(|_| Error::InvalidBatteryState(name.to_owned()))
+    match name {
+        "Discharging" => Ok(BatteryState::Discharging),
+        "Charging" => Ok(BatteryState::Charging),
+        "Not charging" => Ok(BatteryState::NotCharging),
+        "Full" => Ok(BatteryState::Full),
+        "Unknown" => Ok(BatteryState::Unknown),
+        "At threshold" => Ok(BatteryState::AtThreshold),
+        "Invalid" => Ok(BatteryState::Invalid),
+        name => Err(Error::InvalidBatteryState(name.to_owned())),
+    }
 }
 
 /// Read battery energy or charge file

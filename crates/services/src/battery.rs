@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,15 +12,13 @@ mod bluez;
 mod sys;
 
 /// Battery State Enum
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum BatteryState {
     Discharging,
     Charging,
-    #[serde(rename = "Not charging")]
     NotCharging,
     Full,
     Unknown,
-    #[serde(rename = "At threshold")]
     AtThreshold,
     Invalid,
 }

@@ -8,6 +8,5 @@ config = { version = "0.1.0", path = "../config" }
 image.workspace = true
 raqote_svg = { version = "0.1.0", path = "../raqote_svg", features = ["image"] }
 serde.workspace = true
-serde_plain = "1.0.2"
 tokio.workspace = true
 zbus.workspace = true
