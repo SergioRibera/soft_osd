@@ -22,6 +22,10 @@ impl Slider {
         self.value = value.min(1.0).max(0.036);
     }
 
+    pub fn change_size(&mut self, value: f32) {
+        self.size = value;
+    }
+
     pub fn change_color(&mut self, bg: SolidSource, new_color: SolidSource) {
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
         self.c = new_color;

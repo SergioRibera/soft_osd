@@ -316,6 +316,8 @@ impl<'a> App for MainApp<'a> {
                 fg,
             } => {
                 self.clear_content();
+
+                let mut mult = 3.65;
                 let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 self.show_duration = timeout
                     .map(|t| t as f32)
@@ -341,20 +343,26 @@ impl<'a> App for MainApp<'a> {
                 if let Some(i) = icon {
                     self.icon.replace(IconComponent::new(
                         &self.config,
-                        (Some(safe_left), Some(self.half_y)),
+                        (
+                            Some(safe_left),
+                            Some(self.half_y - (self.icon_char.metrics().font_size / 1.5)),
+                        ),
                         (fg, i),
                     ));
+
+                    mult = 4.1;
                     safe_left += self.radius * 0.4;
                 }
 
                 if let Some(slider) = self.slider.as_mut() {
+                    slider.change_size(window.width.unwrap_or(600) as f32 - (self.radius * mult));
                     slider.change_value(value);
                     slider.change_color(bg, fg);
                 } else {
                     self.slider.replace(Slider::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y)),
-                        (value, 4.1),
+                        (value, mult),
                     ));
                 }
             }
