@@ -36,7 +36,16 @@ async fn main() {
         let global = config.globals.clone();
         let manager = ServiceManager::new(is_daemon, app)
             .await
-            .with_battery(true, 5.0, Vec::new())
+            .with_battery(
+                config.battery.enabled,
+                config.battery.refresh_time,
+                config
+                    .battery
+                    .clone()
+                    .level
+                    .map(|l| l.0.keys().copied().collect::<Vec<_>>())
+                    .unwrap_or_default(),
+            )
             .await
             .unwrap()
             .with_singletone()

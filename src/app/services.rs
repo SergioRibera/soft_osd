@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use config::OsdType;
 use services::{Battery, Notification, ServiceBroadcast, ServiceReceive, SingletoneListener};
 
@@ -49,9 +51,28 @@ impl<'a> Notification for MainApp<'a> {
 }
 
 impl<'a> ServiceReceive<'a> for MainApp<'a> {
-    fn batteries_below(&mut self, level: u8, batteries: &[Battery]) {
-        println!("(TODO) Batteries below of: {level}: {batteries:?}");
-        // self.update();
+    fn batteries_below(&mut self, level: u8, _batteries: &[Battery]) {
+        if let Some(battery_config) = self.config.battery.clone().level.as_ref() {
+            for (alert_level, config) in &battery_config.0 {
+                if *alert_level >= level && !self.notified_levels.contains(alert_level) {
+                    // Send Notification
+                    self.update(AppMessage::Slider {
+                        urgency: config::Urgency::Normal,
+                        icon: (config.icon.clone(), self.get_icon_size()).try_into().ok(),
+                        timeout: config.show_duration.map(|d| d as i32),
+                        value: level as f32,
+                        bg: config.background.clone(),
+                        fg: config.foreground.clone(),
+                    });
+
+                    self.notified_levels.insert(*alert_level);
+
+                    std::thread::sleep(Duration::from_secs_f32(
+                        config.show_duration.unwrap_or(5.0),
+                    ));
+                }
+            }
+        }
     }
 
     fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>) {

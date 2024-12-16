@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::RwLock;
 use std::time::Instant;
 
@@ -41,6 +42,7 @@ pub enum AppMessage {
 
 pub struct MainApp<'a> {
     broadcast: Option<ServiceBroadcast<'a>>,
+    notified_levels: HashSet<u8>,
 
     fonts: FontSystem,
     sw_cache: SwashCache,
@@ -103,6 +105,7 @@ impl<'a> From<Config> for MainApp<'a> {
 
         Self {
             broadcast: None,
+            notified_levels: HashSet::new(),
 
             fonts,
             icon_char,

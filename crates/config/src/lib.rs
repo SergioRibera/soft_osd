@@ -1,3 +1,4 @@
+mod battery;
 mod types;
 mod urgency;
 
@@ -5,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use merge2::Merge;
 
+pub use battery::*;
 pub use clap::Parser;
 pub use directories::ProjectDirs;
 pub use types::*;

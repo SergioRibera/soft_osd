@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use merge2::Merge;
 use serde::{Deserialize, Serialize};
 
-use crate::{swap_option, Urgency};
+use crate::{swap_option, BatteryConfig, Urgency};
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum, Serialize, Deserialize)]
 pub enum OsdPosition {
@@ -30,6 +30,10 @@ pub struct Config {
     #[clap(flatten)]
     #[merge(strategy = merge2::option::recursive)]
     pub window: Option<Window>,
+
+    #[clap(skip)]
+    #[merge(skip)]
+    pub battery: BatteryConfig,
 
     #[clap(skip)]
     pub urgency_low: UrgencyConfig,
@@ -175,6 +179,7 @@ impl Default for Config {
             globals,
             config: None,
             window: Some(Default::default()),
+            battery: Default::default(),
             urgency_low: urgency_default.clone(),
             urgency_normal: urgency_default,
             urgency_critical: UrgencyConfig {
