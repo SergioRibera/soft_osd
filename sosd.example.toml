@@ -25,17 +25,17 @@ show_duration = 10.0
 background = "#ff6961"
 foreground = "#fff"
 
-[urgency_low]
+[urgency.low]
 show_duration = 5.0
 background = "#000"
 foreground_color = "#fff"
 
-[urgency_normal]
+[urgency.normal]
 show_duration = 5.0
 background = "#000"
 foreground_color = "#fff"
 
-[urgency_critical]
+[urgency.critical]
 show_duration = 10.0
 background = "#ff6961"
 foreground_color = "#fff"

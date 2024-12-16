@@ -36,11 +36,8 @@ pub struct Config {
     pub battery: BatteryConfig,
 
     #[clap(skip)]
-    pub urgency_low: UrgencyConfig,
-    #[clap(skip)]
-    pub urgency_normal: UrgencyConfig,
-    #[clap(skip)]
-    pub urgency_critical: UrgencyConfig,
+    #[merge(skip)]
+    pub urgency: UrgencyConfig,
 
     #[clap(subcommand)]
     #[serde(skip)]
@@ -88,8 +85,15 @@ pub struct Window {
     pub height: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Merge)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct UrgencyConfig {
+    pub low: UrgencyItemConfig,
+    pub normal: UrgencyItemConfig,
+    pub critical: UrgencyItemConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Merge)]
+pub struct UrgencyItemConfig {
     /// The animation duration to show the widget (in seconds)
     #[merge(strategy = swap_option)]
     pub show_duration: Option<f32>,
@@ -156,7 +160,7 @@ impl Default for Window {
     }
 }
 
-impl Default for UrgencyConfig {
+impl Default for UrgencyItemConfig {
     fn default() -> Self {
         Self {
             show_duration: Some(5.0),
@@ -169,7 +173,7 @@ impl Default for UrgencyConfig {
 impl Default for Config {
     fn default() -> Self {
         let globals = Global::default();
-        let urgency_default = UrgencyConfig {
+        let urgency_default = UrgencyItemConfig {
             show_duration: Some(5.0),
             background: globals.background.clone(),
             foreground_color: globals.foreground_color.clone(),
@@ -178,16 +182,18 @@ impl Default for Config {
         Self {
             globals,
             config: None,
+            command: OsdType::Daemon,
             window: Some(Default::default()),
             battery: Default::default(),
-            urgency_low: urgency_default.clone(),
-            urgency_normal: urgency_default,
-            urgency_critical: UrgencyConfig {
-                show_duration: Some(10.0),
-                background: Some("#ff6961".to_owned()),
-                foreground_color: Some("#fff".to_owned()),
+            urgency: UrgencyConfig {
+                low: urgency_default.clone(),
+                normal: urgency_default,
+                critical: UrgencyItemConfig {
+                    show_duration: Some(10.0),
+                    background: Some("#ff6961".to_owned()),
+                    foreground_color: Some("#fff".to_owned()),
+                },
             },
-            command: OsdType::Daemon,
         }
     }
 }

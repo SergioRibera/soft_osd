@@ -1,7 +1,7 @@
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, UrgencyConfig};
+use crate::{Config, UrgencyItemConfig};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 pub enum Urgency {
@@ -31,12 +31,12 @@ impl From<Urgency> for u8 {
     }
 }
 
-impl From<(&'_ Config, Urgency)> for UrgencyConfig {
+impl From<(&'_ Config, Urgency)> for UrgencyItemConfig {
     fn from((config, urg): (&'_ Config, Urgency)) -> Self {
         match urg {
-            Urgency::Low => config.urgency_low.clone(),
-            Urgency::Normal => config.urgency_normal.clone(),
-            Urgency::Critical => config.urgency_critical.clone(),
+            Urgency::Low => config.urgency.low.clone(),
+            Urgency::Normal => config.urgency.normal.clone(),
+            Urgency::Critical => config.urgency.critical.clone(),
         }
     }
 }

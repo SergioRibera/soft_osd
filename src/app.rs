@@ -3,7 +3,7 @@ use std::sync::RwLock;
 use std::time::Instant;
 
 use ::services::{Icon, ServiceBroadcast};
-use config::{Config, Urgency, UrgencyConfig};
+use config::{Config, Urgency, UrgencyItemConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
 
@@ -316,7 +316,7 @@ impl<'a> App for MainApp<'a> {
                 fg,
             } => {
                 self.clear_content();
-                let urgency = UrgencyConfig::from((&self.config, urgency));
+                let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 self.show_duration = timeout
                     .map(|t| t as f32)
                     .or_else(|| urgency.show_duration)
@@ -369,7 +369,7 @@ impl<'a> App for MainApp<'a> {
                 fg,
             } => {
                 self.clear_content();
-                let urgency = UrgencyConfig::from((&self.config, urgency));
+                let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 println!(
                     "Urgency: {urgency:?} - Global: {:?} - Global BG: {:?}",
                     self.config.globals.foreground_color, self.config.globals.background
