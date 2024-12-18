@@ -70,6 +70,8 @@ impl<'a> ServiceReceive<'a> for MainApp<'a> {
                     std::thread::sleep(Duration::from_secs_f32(
                         config.show_duration.unwrap_or(5.0),
                     ));
+                } else if *alert_level == level && self.notified_levels.contains(alert_level) {
+                    self.notified_levels.remove(alert_level);
                 }
             }
         }
