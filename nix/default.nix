@@ -22,6 +22,10 @@ in
     buildInputs = with pkgs; [
       fontconfig.dev
       libxkbcommon.dev
+      xorg.libX11
+      xorg.libXcursor
+      xorg.libXi
+      xorg.libXrandr
       wayland
     ];
     src = lib.cleanSourceWith {

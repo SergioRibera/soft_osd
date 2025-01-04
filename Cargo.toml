@@ -32,8 +32,9 @@ cosmic-text = "0.12.1"
 image.workspace = true
 raqote.workspace = true
 smithay-client-toolkit = "0.19.2"
-wayland-client = "0.31.7"
 tokio.workspace = true
 zbus.workspace = true
 serde.workspace = true
 services = { version = "0.1.0", path = "crates/services" }
+softbuffer = { version = "0.4.6", default-features = false, features = ["x11", "wayland"] }
+winit = { version = "0.30.5", git = "https://github.com/SergioRibera/winit", branch = "layer_shell", default-features = false, features = ["x11", "wayland"] }

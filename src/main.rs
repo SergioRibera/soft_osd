@@ -65,5 +65,6 @@ async fn main() {
             return;
         }
     }
+
     Window::run(app, config)
 }
