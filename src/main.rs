@@ -2,6 +2,7 @@ use std::cell::OnceCell;
 use std::sync::{Arc, Mutex};
 
 mod app;
+mod buffer;
 mod components;
 mod utils;
 mod window;

@@ -1,13 +1,11 @@
 use std::{
     collections::HashMap,
-    env::var_os,
     num::NonZero,
     sync::{Arc, Mutex},
 };
 
 use raqote::DrawTarget;
 use smithay_client_toolkit::shell::wlr_layer::{Anchor, Layer};
-use softbuffer::{Context, Surface};
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
@@ -18,27 +16,19 @@ use winit::{
         wayland::{MonitorHandleExtWayland, WindowAttributesExtWayland},
         x11::WindowAttributesExtX11,
     },
-    raw_window_handle::{DisplayHandle, HasDisplayHandle},
+    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::{WindowAttributes, WindowId},
 };
 
-use crate::app::App;
+use crate::{
+    app::App,
+    buffer::{is_wayland, new_buffer, Buffer, BufferInterface},
+};
 use config::{Config, OsdPosition};
 
 pub(crate) trait AppTy: App + Sized + Send + Sync {}
 
 impl<T: App + Sized + Send + Sync> AppTy for T {}
-
-fn is_wayland() -> bool {
-    var_os("WAYLAND_DISPLAY")
-        .or(var_os("XDG_SESSION_TYPE"))
-        .is_some_and(|v| {
-            v.to_str()
-                .unwrap_or_default()
-                .to_lowercase()
-                .contains("wayland")
-        })
-}
 
 pub struct Window<T: AppTy> {
     width: u32,
@@ -48,11 +38,6 @@ pub struct Window<T: AppTy> {
     context: DrawTarget,
     render: Arc<Mutex<T>>,
     windows: HashMap<WindowId, WindowState>,
-
-    /// Drawing context.
-    ///
-    /// With OpenGL it could be EGLDisplay.
-    display_handler: Option<Context<DisplayHandle<'static>>>,
 
     // Inputs
     // region: WlRegion,
@@ -120,15 +105,6 @@ impl<T: AppTy> Window<T> {
         };
         let event_loop = EventLoop::new().unwrap();
         let windows = HashMap::with_capacity(4);
-        // SAFETY: we drop the context right before the event loop is stopped, thus making it safe.
-        let display_handler = Some(
-            Context::new(unsafe {
-                std::mem::transmute::<DisplayHandle<'_>, DisplayHandle<'static>>(
-                    event_loop.display_handle().unwrap(),
-                )
-            })
-            .unwrap(),
-        );
 
         let context = DrawTarget::new(width as i32, height as i32);
 
@@ -139,7 +115,6 @@ impl<T: AppTy> Window<T> {
             context,
             windows,
             position,
-            display_handler,
             active_input: false,
             touches: HashMap::new(),
         };
@@ -184,8 +159,8 @@ impl<T: AppTy> Window<T> {
 impl<T: AppTy> ApplicationHandler for Window<T> {
     fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
         let mut window_attributes = WindowAttributes::default()
-            .with_transparent(true)
             .with_decorations(false)
+            .with_transparent(true)
             .with_surface_size(LogicalSize::new(self.width, self.height))
             .with_window_level(winit::window::WindowLevel::AlwaysOnTop);
 
@@ -233,7 +208,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
 
     fn window_event(
         &mut self,
-        event_loop: &dyn ActiveEventLoop,
+        _event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         event: WindowEvent,
     ) {
@@ -275,7 +250,7 @@ struct WindowState {
     /// Render surface.
     ///
     /// NOTE: This surface must be dropped before the `Window`.
-    pub surface: Surface<DisplayHandle<'static>, Arc<dyn winit::window::Window>>,
+    pub buffer: Buffer<Arc<dyn winit::window::Window>>,
     /// The actual winit Window.
     pub window: Arc<dyn winit::window::Window>,
     /// Cursor position over the window.
@@ -288,9 +263,8 @@ impl WindowState {
 
         // SAFETY: the surface is dropped before the `window` which provided it with handle, thus
         // it doesn't outlive it.
-        let mut surface =
-            Surface::new(app.display_handler.as_ref().unwrap(), Arc::clone(&window)).unwrap();
-        surface
+        let mut buffer = new_buffer(window.clone()).unwrap();
+        buffer
             .resize(
                 NonZero::new(app.width).unwrap(),
                 NonZero::new(app.height.into()).unwrap(),
@@ -298,7 +272,7 @@ impl WindowState {
             .unwrap();
 
         let state = Self {
-            surface,
+            buffer,
             window,
             cursor_position: Default::default(),
         };
@@ -307,12 +281,12 @@ impl WindowState {
     }
 
     fn draw(&mut self, buff: &[u32]) {
-        let mut buffer = self.surface.buffer_mut().unwrap();
+        let buffer = self.buffer.buffer_mut().unwrap();
 
         // assert_eq!(canvas.len(), self.context.get_data_u8().len());
         buffer.copy_from_slice(buff);
 
         self.window.pre_present_notify();
-        buffer.present().unwrap();
+        self.buffer.present().unwrap();
     }
 }

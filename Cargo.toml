@@ -36,5 +36,11 @@ tokio.workspace = true
 zbus.workspace = true
 serde.workspace = true
 services = { version = "0.1.0", path = "crates/services" }
-softbuffer = { version = "0.4.6", default-features = false, features = ["x11", "wayland"] }
 winit = { version = "0.30.5", git = "https://github.com/SergioRibera/winit", branch = "layer_shell", default-features = false, features = ["x11", "wayland"] }
+rustix = { version = "0.38", features = ["fs", "mm", "shm", "std"], default-features = false }
+x11rb = { version = "0.13.0", features = ["allow-unsafe-code", "shm"] }
+tiny-xlib = { version = "0.2.1", default-features = false }
+bytemuck = { version = "1.12.3" }
+fastrand = { version = "2.0.0" }
+memmap2 = { version = "0.9.0" }
+as-raw-xcb-connection = "1.0.1"

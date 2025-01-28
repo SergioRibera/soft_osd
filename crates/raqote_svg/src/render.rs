@@ -1,5 +1,4 @@
-use raqote::Color;
-use raqote::{DrawOptions, DrawTarget, PathBuilder, SolidSource, Source, StrokeStyle};
+use raqote::{DrawOptions, DrawTarget, PathBuilder, SolidSource, Source};
 use svg::node::element::path::Command;
 use svg::parser::{Event, Parser};
 
