@@ -16,7 +16,6 @@ use winit::{
         wayland::{MonitorHandleExtWayland, WindowAttributesExtWayland},
         x11::WindowAttributesExtX11,
     },
-    raw_window_handle::{HasDisplayHandle, HasWindowHandle},
     window::{WindowAttributes, WindowId},
 };
 
@@ -239,6 +238,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
                 if can_show {
                     window.draw(self.context.get_data());
                 }
+                window.window.request_redraw();
             }
             _ => {}
         }

@@ -63,7 +63,7 @@ impl WaylandBuffer {
             width,
             height,
             width * 4,
-            wl_shm::Format::Xrgb8888,
+            wl_shm::Format::Argb8888,
             qh,
             released.clone(),
         );
@@ -96,7 +96,7 @@ impl WaylandBuffer {
                 width,
                 height,
                 width * 4,
-                wl_shm::Format::Xrgb8888,
+                wl_shm::Format::Argb8888,
                 &self.qh,
                 self.released.clone(),
             );
