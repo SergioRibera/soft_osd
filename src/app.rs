@@ -281,6 +281,9 @@ impl<'a> App for MainApp<'a> {
         // Manejar estados de animación
         match self.window_state {
             WindowState::Hidden => {
+                if matches!(msg, AppMessage::Close) {
+                    return;
+                }
                 // Si la ventana está oculta, iniciamos ambas animaciones
                 self.window_state = WindowState::Entering {
                     start_time: current_time,
@@ -476,7 +479,6 @@ impl<'a> App for MainApp<'a> {
                     progress: 0.0,
                 };
                 self.show_duration = 0.0;
-                return;
             }
         }
     }
