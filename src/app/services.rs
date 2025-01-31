@@ -14,9 +14,12 @@ impl<'a> Notification for MainApp<'a> {
         urgency: config::Urgency,
         body: Option<String>,
         value: Option<f32>,
-        _actions: Vec<String>,
+        actions: Vec<String>,
         timeout: Option<i32>,
     ) -> zbus::fdo::Result<u32> {
+        if actions.contains(&"close".into()) {
+            return Ok(id);
+        }
         if let Some(value) = value {
             self.update(AppMessage::Slider {
                 icon,
