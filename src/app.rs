@@ -6,6 +6,7 @@ use ::services::{Icon, ServiceBroadcast};
 use config::{Config, Urgency, UrgencyItemConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
+use winit::event::WindowEvent;
 
 mod services;
 
@@ -14,6 +15,7 @@ use crate::utils::{ease_out_cubic, ToColor};
 
 pub trait App: From<Config> + Sized + Sync + Send {
     fn show(&self) -> bool;
+    fn event(&mut self, _: WindowEvent) {}
     fn update(&mut self, _: AppMessage) {}
     fn draw(&mut self, ctx: &mut DrawTarget);
 }
@@ -271,6 +273,12 @@ impl<'a> App for MainApp<'a> {
 
         !matches!(self.window_state, WindowState::Hidden)
             || !matches!(self.content_state, ContentState::Idle)
+    }
+
+    fn event(&mut self, event: WindowEvent) {
+        match event {
+            _ => {}
+        }
     }
 
     fn update(&mut self, msg: AppMessage) {

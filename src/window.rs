@@ -221,26 +221,40 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             // WindowEvent::Destroyed => todo!(),
             WindowEvent::PointerMoved { position, .. } => {
                 window.cursor_position.replace(position);
-                window.window.request_redraw()
+                window.window.request_redraw();
             }
             WindowEvent::PointerEntered { position, .. } => {
                 window.cursor_position.replace(position);
-                window.window.request_redraw()
+                window.window.request_redraw();
             }
-            WindowEvent::PointerLeft { position, .. } => {
+            e @ WindowEvent::PointerLeft { position, .. } => {
                 window.cursor_position = position;
-                window.window.request_redraw()
+                window.window.request_redraw();
+                {
+                    let Ok(mut render) = self.render.lock() else {
+                        return;
+                    };
+                    render.event(e);
+                }
             }
-            // WindowEvent::MouseWheel { delta, phase, .. } => todo!(),
-            // WindowEvent::PointerButton { state, button, .. } => todo!(),
-            // WindowEvent::DoubleTapGesture { .. } => todo!(),
+            e @ WindowEvent::MouseWheel { .. } => {
+                let Ok(mut render) = self.render.lock() else {
+                    return;
+                };
+                render.event(e);
+            }
             WindowEvent::RedrawRequested => {
                 if can_show {
                     window.draw(self.context.get_data());
                 }
                 window.window.request_redraw();
             }
-            _ => {}
+            e => {
+                let Ok(mut render) = self.render.lock() else {
+                    return;
+                };
+                render.event(e);
+            }
         }
     }
 }
