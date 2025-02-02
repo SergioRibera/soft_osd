@@ -3,6 +3,15 @@ show_duration = 5.0
 background = "#000"
 foreground_color = "#fff"
 
+[actions.RightClick]
+action = "Close"
+
+[actions.LeftClick]
+action = "OpenNotification"
+
+[actions.ScrollUp]
+action = "Close"
+
 [window]
 position = "Top"
 radius = 100
