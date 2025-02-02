@@ -1,0 +1,22 @@
+# This is manifest for simple-commits a tool to make easy conventional commits
+# https://github.com/romancitodev/simple-commits
+
+[git]
+skip_preview = true
+skip_emojis = true
+
+[[scopes]]
+name = "configurations"
+description = "Modifications in configurations types"
+
+[[scopes]]
+name = "services"
+description = "Modifications services related"
+
+[[scopes]]
+name = "gui"
+description = "Modifications GUI related"
+
+[[scopes]]
+name = "app"
+description = "Main application related"
