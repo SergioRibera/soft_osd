@@ -1,12 +1,14 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 use std::time::Instant;
 
 use ::services::{Icon, ServiceBroadcast};
-use config::{Config, Urgency, UrgencyItemConfig};
+use config::{Config, InputAction, InputModifier, NotificationAction, Urgency, UrgencyItemConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
-use winit::event::WindowEvent;
+use winit::dpi::LogicalPosition;
+use winit::event::{ButtonSource, FingerId, Modifiers, MouseScrollDelta, WindowEvent};
+use winit::keyboard::ModifiersKeyState;
 
 mod event_loop;
 mod services;
@@ -48,6 +50,8 @@ pub enum AppMessage {
 pub struct MainApp<'a> {
     broadcast: Option<ServiceBroadcast<'a>>,
     notified_levels: HashSet<u8>,
+    modifiers: Modifiers,
+    touches: HashMap<FingerId, (Option<LogicalPosition<f32>>, Option<LogicalPosition<f32>>)>,
 
     fonts: FontSystem,
     sw_cache: SwashCache,
@@ -97,6 +101,8 @@ impl<'a> From<Config> for MainApp<'a> {
         Self {
             broadcast: None,
             notified_levels: HashSet::new(),
+            modifiers: Modifiers::default(),
+            touches: HashMap::new(),
 
             fonts,
             icon_char,
@@ -122,22 +128,128 @@ impl<'a> From<Config> for MainApp<'a> {
     }
 }
 
+impl<'a> App for MainApp<'a> {
     fn show(&self) -> bool {
         !matches!(self.window_state, WindowState::Hidden)
             || !matches!(self.content_state, ContentState::Idle)
     }
 
+    fn event(&mut self, event: WindowEvent) {
+        let Some(actions) = self.config.actions.as_ref() else {
+            return;
+        };
+        let modifiers = if self.modifiers.lalt_state() == ModifiersKeyState::Pressed {
+            Some(InputModifier::Alt)
+        } else if self.modifiers.lcontrol_state() == ModifiersKeyState::Pressed {
+            Some(InputModifier::Ctrl)
+        } else if self.modifiers.lshift_state() == ModifiersKeyState::Pressed {
+            Some(InputModifier::Shift)
+        } else {
+            None
+        };
+        match event {
+            WindowEvent::PointerButton {
+                state,
+                position,
+                button,
+                ..
+            } => {
+                let position: winit::dpi::LogicalPosition<f32> = position.to_logical(1.0);
+                if state == winit::event::ElementState::Pressed {
+                    if let ButtonSource::Touch { finger_id, .. } = button {
+                        self.touches.insert(finger_id, (Some(position), None));
                     }
+                    let input_action = match button {
+                        ButtonSource::Mouse(button) => match button {
+                            winit::event::MouseButton::Left => InputAction::LeftClick,
+                            winit::event::MouseButton::Middle => InputAction::MiddleClick,
+                            winit::event::MouseButton::Right => InputAction::RightClick,
+                            _ => return,
+                        },
+                        _ => {
+                            return;
+                        }
                     };
+                    if let Some(input_event) = actions.get(input_action) {
+                        if input_event
+                            .modifier
+                            .zip(modifiers)
+                            .is_some_and(|(m, em)| m == em)
+                            || input_event.modifier.is_none()
+                        {
+                            match input_event.action {
+                                NotificationAction::Close => {
+                                    println!("Close");
+                                }
+                                NotificationAction::OpenNotification => {
+                                    println!("Callback to notification");
+                                }
+                            }
+                        }
                     }
+                }
+                if state == winit::event::ElementState::Released {
+                    let ButtonSource::Touch { finger_id, .. } = button else {
+                        return;
+                    };
+                    let Some((Some(start), end)) = self.touches.get(&finger_id) else {
+                        return;
+                    };
+                    let delta_x = (start.x - position.x).abs();
+                    let delta_y = start.y - position.y;
+                    let input_action = if delta_y > 50.0 && delta_x < 30.0 {
+                        InputAction::TouchSwipeUp
+                    } else if delta_y < 50.0 && delta_x < 30.0 {
+                        InputAction::TouchSwipeDown
+                    } else {
+                        return;
+                    };
+
+                    if let Some(input_event) = actions.get(input_action) {
+                        if input_event
+                            .modifier
+                            .zip(modifiers)
+                            .is_some_and(|(m, em)| m == em)
+                            || input_event.modifier.is_none()
+                        {
+                            match input_event.action {
+                                NotificationAction::Close => self.update(AppMessage::Close),
+                                NotificationAction::OpenNotification => {
+                                    println!("Callback to notification");
+                                }
+                            }
+                        }
                     }
                 }
             }
+            WindowEvent::ModifiersChanged(modifiers) => self.modifiers = modifiers,
+            WindowEvent::MouseWheel { delta, .. } => {
+                let MouseScrollDelta::LineDelta(_, y) = delta else {
+                    return;
+                };
+                let input_action = if y > 0.0 {
+                    InputAction::ScrollUp
                 } else {
+                    InputAction::ScrollDown
+                };
+                if let Some(input_event) = actions.get(input_action) {
+                    if input_event
+                        .modifier
+                        .zip(modifiers)
+                        .is_some_and(|(m, em)| m == em)
+                        || input_event.modifier.is_none()
+                    {
+                        match input_event.action {
+                            NotificationAction::Close => self.update(AppMessage::Close),
+                            NotificationAction::OpenNotification => {
+                                println!("Callback to notification");
+                            }
+                        }
                     }
                 }
             }
             _ => {}
+        };
     }
 
     fn update(&mut self, msg: AppMessage) {
