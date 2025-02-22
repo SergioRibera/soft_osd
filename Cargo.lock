@@ -552,7 +552,7 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 [[package]]
 name = "dpi"
 version = "0.1.1"
-source = "git+https://github.com/SergioRibera/winit?branch=layer_shell#36a39061e89dae2837431477cf76634c6ec1bc34"
+source = "git+https://github.com/SergioRibera/winit?branch=layer_shell#08d03de91d6ce56908f68e85cede3dca84d41d9d"
 
 [[package]]
 name = "either"
@@ -2629,7 +2629,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winit"
 version = "0.30.5"
-source = "git+https://github.com/SergioRibera/winit?branch=layer_shell#36a39061e89dae2837431477cf76634c6ec1bc34"
+source = "git+https://github.com/SergioRibera/winit?branch=layer_shell#08d03de91d6ce56908f68e85cede3dca84d41d9d"
 dependencies = [
  "ahash",
  "android-activity",

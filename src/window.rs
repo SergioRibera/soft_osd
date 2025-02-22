@@ -13,7 +13,7 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop},
     monitor::VideoModeHandle,
     platform::{
-        wayland::{MonitorHandleExtWayland, WindowAttributesExtWayland},
+        wayland::{MonitorHandleExtWayland, WindowAttributesExtWayland, WindowExtWayland},
         x11::WindowAttributesExtX11,
     },
     window::{WindowAttributes, WindowId},
@@ -41,6 +41,8 @@ pub struct Window<T: AppTy> {
     // Inputs
     // region: WlRegion,
     active_input: bool,
+    safe_area: Option<(LogicalPosition<i32>, LogicalSize<i32>)>,
+    passthrought_area: Option<(LogicalPosition<i32>, LogicalSize<i32>)>,
     // Variables para rastrear el gesto
     touches: HashMap<i32, (Option<(f64, f64)>, Option<(f64, f64)>)>, // (start_position, end_position)
 }
@@ -71,11 +73,12 @@ fn create_window<T: AppTy>(
     );
 
     let window_attrs = if is_wayland() {
+        let (pos, size) = app.passthrought_area.unwrap();
         window_attrs
             .with_anchor(Anchor::LEFT | Anchor::TOP | Anchor::RIGHT)
             .with_layer(Layer::Overlay)
             .with_margin(y as i32, x as i32, 0, x as i32)
-            // .with_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
+            .with_region(pos, size)
             .with_output(monitor_mode.monitor().native_id())
     } else {
         window_attrs.with_position(LogicalPosition::new(x, y))
@@ -94,10 +97,14 @@ impl<T: AppTy> Window<T> {
             position,
             width,
             height,
+            radius,
             ..
         } = window.clone().unwrap_or_default();
         let width = width.unwrap_or(600);
         let height = height.unwrap_or(80);
+        let radius = radius.unwrap_or(100) as f32;
+        let safe_left = (radius * 2.0) - 20.0;
+        let max_width = width as f32 - (radius * 3.7);
         let (width, height) = match position {
             OsdPosition::Bottom | OsdPosition::Top => (width, height),
             OsdPosition::Left | OsdPosition::Right => (height, width),
@@ -116,6 +123,11 @@ impl<T: AppTy> Window<T> {
             position,
             active_input: false,
             touches: HashMap::new(),
+            safe_area: Some((
+                LogicalPosition::new(safe_left as i32, 0),
+                LogicalSize::new(max_width as i32, height as i32),
+            )),
+            passthrought_area: Some((LogicalPosition::new(0, 0), LogicalSize::new(0, 0))),
         };
 
         event_loop.run_app(&mut app).unwrap();
@@ -125,6 +137,7 @@ impl<T: AppTy> Window<T> {
         let Ok(mut render) = self.render.lock() else {
             return false;
         };
+        let show = render.show();
 
         // Draw to the window:
         self.context.clear(raqote::SolidSource {
@@ -134,24 +147,11 @@ impl<T: AppTy> Window<T> {
             a: 0,
         });
 
-        if render.show() {
+        if show {
             render.draw(&mut self.context);
-            // enable capture inputs
-            if !self.active_input {
-                self.active_input = true;
-                println!("Active input");
-                // self.layer.set_input_region(None);
-            }
-        } else {
-            // disable capture inputs
-            if self.active_input {
-                self.active_input = false;
-                println!("Disable input");
-                // self.layer.set_input_region(Some(&self.region));
-            }
         }
 
-        true
+        show
     }
 }
 
@@ -256,6 +256,27 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
                 render.event(e);
             }
         }
+
+        // If the logic is collapsed not works :(
+        #[allow(clippy::collapsible_if)]
+        if can_show {
+            if !self.active_input {
+                self.active_input = true;
+                for window in self.windows.values_mut() {
+                    window.window.set_region(self.safe_area);
+                }
+                println!("Active input");
+            }
+        } else {
+            if self.active_input {
+                println!("About to Wait");
+                self.active_input = false;
+                for window in self.windows.values_mut() {
+                    window.window.set_region(self.passthrought_area);
+                }
+                println!("Disable input");
+            }
+        }
     }
 }
 
@@ -297,7 +318,6 @@ impl WindowState {
     fn draw(&mut self, buff: &[u32]) {
         let buffer = self.buffer.buffer_mut().unwrap();
 
-        // assert_eq!(canvas.len(), self.context.get_data_u8().len());
         buffer.copy_from_slice(buff);
 
         self.window.pre_present_notify();
