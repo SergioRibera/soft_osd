@@ -170,7 +170,7 @@ impl<'a> App for MainApp<'a> {
                             return;
                         }
                     };
-                    if let Some(input_event) = actions.get(input_action) {
+                    if let Some(input_event) = actions.get(&input_action) {
                         if input_event
                             .modifier
                             .zip(modifiers)
@@ -205,7 +205,7 @@ impl<'a> App for MainApp<'a> {
                         return;
                     };
 
-                    if let Some(input_event) = actions.get(input_action) {
+                    if let Some(input_event) = actions.get(&input_action) {
                         if input_event
                             .modifier
                             .zip(modifiers)
@@ -232,7 +232,7 @@ impl<'a> App for MainApp<'a> {
                 } else {
                     InputAction::ScrollDown
                 };
-                if let Some(input_event) = actions.get(input_action) {
+                if let Some(input_event) = actions.get(&input_action) {
                     if input_event
                         .modifier
                         .zip(modifiers)
