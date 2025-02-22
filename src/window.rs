@@ -244,9 +244,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
                 render.event(e);
             }
             WindowEvent::RedrawRequested => {
-                if can_show {
-                    window.draw(self.context.get_data());
-                }
+                window.draw(self.context.get_data());
                 window.window.request_redraw();
             }
             e => {
