@@ -19,7 +19,7 @@ impl ToColor for String {
     type Target = SolidSource;
 
     fn to_color(&self) -> Self::Target {
-        assert_eq!(self.is_empty(), false, "Cannot parse empty string");
+        assert!(!self.is_empty(), "Cannot parse empty string");
         assert_eq!(
             self.as_bytes()[0],
             b'#',

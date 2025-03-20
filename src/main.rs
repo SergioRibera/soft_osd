@@ -1,6 +1,5 @@
 use parking_lot::Mutex;
-use std::cell::OnceCell;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 mod app;
 mod buffer;
@@ -13,7 +12,7 @@ use config::{get_config, write_default, Config, OsdType, Parser, ProjectDirs};
 use services::ServiceManager;
 use window::Window;
 
-const PROJECT_PATH: OnceCell<ProjectDirs> = OnceCell::new();
+static PROJECT_PATH: OnceLock<ProjectDirs> = OnceLock::new();
 
 #[tokio::main]
 async fn main() {

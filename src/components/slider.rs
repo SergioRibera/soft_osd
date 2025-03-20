@@ -19,7 +19,7 @@ pub struct Slider {
 
 impl Slider {
     pub fn change_value(&mut self, value: f32) {
-        self.value = value.min(1.0).max(0.036);
+        self.value = value.clamp(0.036, 1.0);
     }
 
     pub fn change_size(&mut self, value: f32) {
@@ -110,7 +110,7 @@ impl Component<'_> for Slider {
             .to_color();
         let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
         let bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
-        let value = (value / 100.0).min(1.0).max(0.036);
+        let value = (value / 100.0).clamp(0.036, 1.0);
 
         Self {
             c,
@@ -119,7 +119,7 @@ impl Component<'_> for Slider {
             value,
             rounded,
             position,
-            x: x.unwrap_or_else(|| radius * 2.4),
+            x: x.unwrap_or(radius * 2.4),
             y: y.map(|y| y - (rounded * 2.0))
                 .unwrap_or_else(|| window.height.unwrap_or(80) as f32 / 2.0 - (rounded * 2.0)),
         }

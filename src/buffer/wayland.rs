@@ -87,7 +87,7 @@ impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for WaylandImpl<H
             .as_ref()
             .expect("Must set surface before calling `present_with_damage()`");
 
-        buffer.attach(&surface);
+        buffer.attach(surface);
 
         if surface.version() < 4 {
             surface.damage(0, 0, i32::MAX, i32::MAX);

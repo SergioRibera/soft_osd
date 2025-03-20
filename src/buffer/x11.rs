@@ -308,7 +308,7 @@ impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for X11DisplayImp
                                 ))
                             })(
                             )
-                            .ok_or(format!("Cannot convert to u16"))?;
+                            .ok_or("Cannot convert to u16".to_string())?;
                             self.connection
                                 .shm_put_image(
                                     self.window,
@@ -334,7 +334,6 @@ impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for X11DisplayImp
                             // Send a short request to act as a notification for when the X server is done processing the image.
                             shm.begin_wait(self.connection.as_ref())
                                 .map_err(|_| "Failed to draw image to window".into())
-                                .map(|c| c)
                         })?;
                 }
             }
@@ -353,8 +352,8 @@ impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for X11DisplayImp
             x: 0,
             y: 0,
             // We know width/height will be non-negative
-            width: width.try_into().unwrap(),
-            height: height.try_into().unwrap(),
+            width: width.into(),
+            height: height.into(),
         }])
     }
 }

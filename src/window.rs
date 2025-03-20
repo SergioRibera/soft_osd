@@ -61,10 +61,10 @@ fn create_window<T: AppTy>(
     let w = app.width;
     let h = app.height;
     let (x, y) = match app.position {
-        OsdPosition::Top => ((sw as u32 / 2) - w / 2, 0),
-        OsdPosition::Left => (0, (sh as u32 / 2) - h / 2),
-        OsdPosition::Right => (sw as u32 - w, (sh as u32 / 2) - h / 2),
-        OsdPosition::Bottom => ((sw as u32 / 2) - w / 2, sh as u32 - h),
+        OsdPosition::Top => ((sw / 2) - w / 2, 0),
+        OsdPosition::Left => (0, (sh / 2) - h / 2),
+        OsdPosition::Right => (sw - w, (sh / 2) - h / 2),
+        OsdPosition::Bottom => ((sw / 2) - w / 2, sh - h),
     };
     println!(
         "Screen({:?}): ({sw}, {sh}) => {:?} ({x}, {y}, {w}, {h})",
@@ -186,7 +186,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             ),
         }
 
-        for screen in event_loop.available_monitors().into_iter() {
+        for screen in event_loop.available_monitors() {
             let name = screen
                 .name()
                 .map(|s| s.to_string())
@@ -298,17 +298,15 @@ impl WindowState {
         buffer
             .resize(
                 NonZero::new(app.width).unwrap(),
-                NonZero::new(app.height.into()).unwrap(),
+                NonZero::new(app.height).unwrap(),
             )
             .unwrap();
 
-        let state = Self {
+        Self {
             output,
             buffer,
             window,
-        };
-
-        state
+        }
     }
 
     fn draw(&mut self, buff: &[u32]) {

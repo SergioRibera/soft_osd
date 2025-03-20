@@ -18,6 +18,8 @@ use crate::utils::ToColor;
 
 use self::event_loop::{ContentState, WindowState};
 
+type Touch = (Option<LogicalPosition<f32>>, Option<LogicalPosition<f32>>);
+
 pub trait App: From<Config> + Sized + Sync + Send {
     fn show(&self) -> bool;
     fn event(&mut self, _: &WindowEvent) {}
@@ -58,7 +60,7 @@ pub struct MainApp {
     modifiers: Modifiers,
     current_id: Option<u32>,
     output: Option<String>,
-    touches: HashMap<FingerId, (Option<LogicalPosition<f32>>, Option<LogicalPosition<f32>>)>,
+    touches: HashMap<FingerId, Touch>,
 
     fonts: FontSystem,
     sw_cache: SwashCache,
@@ -151,7 +153,7 @@ impl App for MainApp {
         let Some(actions) = self.config.actions.clone() else {
             return;
         };
-        let curr_id = self.current_id.clone();
+        let curr_id = self.current_id;
         let modifiers = if self.modifiers.lalt_state() == ModifiersKeyState::Pressed {
             Some(InputModifier::Alt)
         } else if self.modifiers.lcontrol_state() == ModifiersKeyState::Pressed {
@@ -215,7 +217,7 @@ impl App for MainApp {
                     let ButtonSource::Touch { finger_id, .. } = button else {
                         return;
                     };
-                    let Some((Some(start), _end)) = self.touches.get(&finger_id) else {
+                    let Some((Some(start), _end)) = self.touches.get(finger_id) else {
                         return;
                     };
                     let delta_x = (start.x - position.x).abs();
@@ -347,19 +349,19 @@ impl App for MainApp {
                 let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 self.show_duration = timeout
                     .map(|t| t as f32)
-                    .or_else(|| urgency.show_duration)
-                    .or_else(|| self.config.globals.show_duration)
+                    .or(urgency.show_duration)
+                    .or(self.config.globals.show_duration)
                     .unwrap_or(5.0);
 
                 let fg = fg
-                    .or_else(|| urgency.foreground_color.clone())
-                    .or_else(|| self.config.globals.foreground_color.clone())
+                    .or(urgency.foreground_color.clone())
+                    .or(self.config.globals.foreground_color.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
                 let bg = bg
-                    .or_else(|| urgency.background.clone())
-                    .or_else(|| self.config.globals.background.clone())
+                    .or(urgency.background.clone())
+                    .or(self.config.globals.background.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
@@ -415,19 +417,19 @@ impl App for MainApp {
                 );
                 self.show_duration = timeout
                     .map(|t| t as f32)
-                    .or_else(|| urgency.show_duration)
-                    .or_else(|| self.config.globals.show_duration)
+                    .or(urgency.show_duration)
+                    .or(self.config.globals.show_duration)
                     .unwrap_or(5.0);
 
                 let fg = fg
-                    .or_else(|| urgency.foreground_color.clone())
-                    .or_else(|| self.config.globals.foreground_color.clone())
+                    .or(urgency.foreground_color.clone())
+                    .or(self.config.globals.foreground_color.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
                 let bg = bg
-                    .or_else(|| urgency.background.clone())
-                    .or_else(|| self.config.globals.background.clone())
+                    .or(urgency.background.clone())
+                    .or(self.config.globals.background.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
