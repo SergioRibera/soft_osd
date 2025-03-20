@@ -105,7 +105,7 @@ where
             battery: None,
             battery_levels: Vec::new(),
             refresh_time: Duration::from_secs_f32(5.0),
-            _msg: PhantomData::default(),
+            _msg: Default::default(),
         }
     }
 
@@ -156,7 +156,7 @@ where
     }
 
     pub async fn with_singletone(self) -> Result<Self> {
-        let server = SingletoneServer(self.receiver.clone(), PhantomData::default());
+        let server = SingletoneServer(self.receiver.clone(), Default::default());
         let server_conn = Builder::session()?
             .name("rs.sergioribera.sosd")?
             .serve_at("/rs/sergioribera/sosd", server)?

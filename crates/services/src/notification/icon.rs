@@ -27,7 +27,7 @@ impl TryFrom<(String, f32)> for Icon {
 
         let size = size as u32;
 
-        match path.extension().map(|e| e.to_str()).flatten() {
+        match path.extension().and_then(|e| e.to_str()) {
             Some("png") | Some("jpeg") | Some("jpg") => {
                 if let Ok(img) = image::open(path) {
                     let img = resize(&img, size, size, image::imageops::FilterType::Gaussian);
@@ -37,7 +37,7 @@ impl TryFrom<(String, f32)> for Icon {
             }
             Some("svg") => {
                 let img = raqote_svg::render_to_image(std::fs::read_to_string(path)?, (size, size));
-                return Ok(Self::Image(img));
+                Ok(Self::Image(img))
             }
             e => Err(IconError::CannotLoadFormat(
                 e.unwrap_or_default().to_owned(),

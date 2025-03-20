@@ -57,6 +57,7 @@ impl<T: Notification + 'static> NotificationIPC<T> {
     ///
     /// The timeout time in milliseconds since the display of the notification at which the notification should automatically close.
     /// If -1, the notification's expiration time is dependent on the notification server's settings, and may vary for the type of notification. If 0, never expire.
+    #[allow(clippy::too_many_arguments)]
     fn notify(
         &self,
         _app_name: String,
@@ -121,7 +122,7 @@ impl<T: Notification + 'static> NotificationIPC<T> {
         let urgency = hints
             .get("urgency")
             .and_then(|u| u.clone().downcast::<u8>().ok())
-            .map(|u| Urgency::from(u))
+            .map(Urgency::from)
             .unwrap_or_default();
         let body = body
             .is_empty()

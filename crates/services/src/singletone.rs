@@ -36,7 +36,7 @@ where
 {
     async fn process_message(&mut self, raw_message: Vec<u8>) -> zbus::fdo::Result<()> {
         let raw_message = unsafe { core::mem::transmute::<&[u8], &'static [u8]>(&raw_message) };
-        let message: GenericMessage<Message> = bincode::deserialize(&raw_message).unwrap();
+        let message: GenericMessage<Message> = bincode::deserialize(raw_message).unwrap();
         self.0.on_message(message.0);
         Ok(())
     }
