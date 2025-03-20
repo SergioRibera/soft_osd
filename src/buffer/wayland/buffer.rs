@@ -115,9 +115,9 @@ impl WaylandBuffer {
         surface.attach(Some(&self.buffer), 0, 0);
     }
 
-    pub fn released(&self) -> bool {
-        self.released.load(Ordering::SeqCst)
-    }
+    // pub fn released(&self) -> bool {
+    //     self.released.load(Ordering::SeqCst)
+    // }
 
     fn len(&self) -> usize {
         self.width as usize * self.height as usize

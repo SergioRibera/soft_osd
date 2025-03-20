@@ -36,7 +36,7 @@ pub struct X11DisplayImpl<H: ?Sized> {
     depth: u8,
 
     /// The visual ID of the drawing context.
-    visual_id: u32,
+    _visual_id: u32,
 
     /// The buffer we draw to.
     buffer: Buffer,
@@ -48,7 +48,7 @@ pub struct X11DisplayImpl<H: ?Sized> {
     size: Option<(NonZeroU16, NonZeroU16)>,
 
     /// Keep the window alive.
-    window_handle: H,
+    _window_handle: H,
 }
 
 /// The buffer that is being drawn to.
@@ -224,11 +224,11 @@ impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for X11DisplayImp
             window,
             gc,
             depth: geometry_reply.depth,
-            visual_id,
+            _visual_id: visual_id,
             buffer,
             buffer_presented: false,
             size: None,
-            window_handle: handle,
+            _window_handle: handle,
         })
     }
 

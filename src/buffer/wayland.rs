@@ -31,7 +31,7 @@ pub struct WaylandImpl<W: ?Sized> {
     ///
     /// This has to be dropped *after* the `surface` field, because the `surface` field implicitly
     /// borrows this.
-    window_handle: W,
+    _window_handle: W,
 }
 
 impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for WaylandImpl<H> {
@@ -73,7 +73,7 @@ impl<H: HasWindowHandle + HasDisplayHandle> BufferInterface<H> for WaylandImpl<H
             buffers: None,
             qh: qh.clone(),
             surface: Some(surface),
-            window_handle: handle,
+            _window_handle: handle,
         })
     }
 

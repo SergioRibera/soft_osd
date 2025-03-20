@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 use std::time::Instant;
 
-use ::services::{Icon, Notification, ServiceBroadcast};
+use ::services::{Icon, ServiceBroadcast};
 use config::{Config, InputAction, InputModifier, NotificationAction, Urgency, UrgencyItemConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
@@ -206,7 +206,7 @@ impl App for MainApp {
                     let ButtonSource::Touch { finger_id, .. } = button else {
                         return;
                     };
-                    let Some((Some(start), end)) = self.touches.get(&finger_id) else {
+                    let Some((Some(start), _end)) = self.touches.get(&finger_id) else {
                         return;
                     };
                     let delta_x = (start.x - position.x).abs();

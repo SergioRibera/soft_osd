@@ -44,8 +44,6 @@ pub struct Window<T: AppTy> {
     max_width: i32,
     safe_area: Option<Region>,
     passthrought_area: Option<Region>,
-    // Variables para rastrear el gesto
-    touches: HashMap<i32, (Option<(f64, f64)>, Option<(f64, f64)>)>, // (start_position, end_position)
 }
 
 fn create_window<T: AppTy>(
@@ -122,7 +120,6 @@ impl<T: AppTy> Window<T> {
             windows,
             position,
             active_input: false,
-            touches: HashMap::new(),
             safe_area: None,
             passthrought_area: None,
             max_width: max_width as i32,
