@@ -5,7 +5,7 @@ use services::{Battery, Notification, ServiceBroadcast, ServiceReceive, Singleto
 
 use super::{App, AppMessage, MainApp, ICON_SIZE};
 
-impl<'a> Notification for MainApp<'a> {
+impl Notification for MainApp {
     fn notify(
         &mut self,
         id: u32,
@@ -14,9 +14,12 @@ impl<'a> Notification for MainApp<'a> {
         urgency: config::Urgency,
         body: Option<String>,
         value: Option<f32>,
-        _actions: Vec<String>,
+        actions: Vec<String>,
         timeout: Option<i32>,
     ) -> zbus::fdo::Result<u32> {
+        if actions.contains(&"close".into()) {
+            return Ok(id);
+        }
         if let Some(value) = value {
             self.update(AppMessage::Slider {
                 icon,
@@ -25,6 +28,8 @@ impl<'a> Notification for MainApp<'a> {
                 timeout,
                 bg: None,
                 fg: None,
+                id: Some(id),
+                output: None,
             })
         } else {
             self.update(AppMessage::Notification {
@@ -35,6 +40,8 @@ impl<'a> Notification for MainApp<'a> {
                 timeout,
                 bg: None,
                 fg: None,
+                id: Some(id),
+                output: None,
             })
         }
         Ok(id)
@@ -50,13 +57,15 @@ impl<'a> Notification for MainApp<'a> {
     }
 }
 
-impl<'a> ServiceReceive<'a> for MainApp<'a> {
+impl ServiceReceive for MainApp {
     fn batteries_below(&mut self, level: u8, _batteries: &[Battery]) {
         if let Some(battery_config) = self.config.battery.clone().level.as_ref() {
             for (alert_level, config) in &battery_config.0 {
                 if *alert_level >= level && !self.notified_levels.contains(alert_level) {
                     // Send Notification
                     self.update(AppMessage::Slider {
+                        id: None,
+                        output: None,
                         urgency: config::Urgency::Normal,
                         icon: (config.icon.clone(), self.get_icon_size()).try_into().ok(),
                         timeout: config.show_duration.map(|d| d as i32),
@@ -77,13 +86,16 @@ impl<'a> ServiceReceive<'a> for MainApp<'a> {
         }
     }
 
-    fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>) {
+    fn set_broadcast(&mut self, broadcast: ServiceBroadcast) {
         self.broadcast.replace(broadcast);
     }
 }
 
-impl<'a> SingletoneListener<(Option<String>, Option<String>, OsdType)> for MainApp<'a> {
-    fn on_message(&mut self, (bg, fg, msg): (Option<String>, Option<String>, OsdType)) {
+impl SingletoneListener<(Option<String>, Option<String>, Option<String>, OsdType)> for MainApp {
+    fn on_message(
+        &mut self,
+        (o, bg, fg, msg): (Option<String>, Option<String>, Option<String>, OsdType),
+    ) {
         let msg = match msg {
             OsdType::Daemon => None,
             OsdType::Init => None,
@@ -98,8 +110,10 @@ impl<'a> SingletoneListener<(Option<String>, Option<String>, OsdType)> for MainA
                 fg,
                 title,
                 body,
+                output: o,
                 urgency: urgency.unwrap_or_default(),
                 icon: image.and_then(|image| (image, self.get_icon_size()).try_into().ok()),
+                id: None,
                 timeout: None,
             }),
             OsdType::Slider {
@@ -109,9 +123,11 @@ impl<'a> SingletoneListener<(Option<String>, Option<String>, OsdType)> for MainA
             } => Some(AppMessage::Slider {
                 bg,
                 fg,
+                output: o,
                 value: value as f32,
                 urgency: urgency.unwrap_or_default(),
                 icon: image.and_then(|image| (image, self.get_icon_size()).try_into().ok()),
+                id: None,
                 timeout: None,
             }),
         };

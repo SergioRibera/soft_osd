@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use merge2::Merge;
 use serde::{Deserialize, Serialize};
 
-use crate::{swap_option, BatteryConfig, Urgency};
+use crate::{swap_option, Action, BatteryConfig, Urgency};
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum, Serialize, Deserialize)]
 pub enum OsdPosition {
@@ -13,6 +13,10 @@ pub enum OsdPosition {
     Left,
     Right,
     Bottom,
+}
+
+fn serde_default_output() -> Option<String> {
+    None
 }
 
 #[derive(Debug, Clone, PartialEq, Parser, Serialize, Deserialize, Merge)]
@@ -26,6 +30,15 @@ pub struct Config {
     #[clap(flatten)]
     #[serde(flatten)]
     pub globals: Global,
+
+    /// Output Screen where notification has been showed
+    #[clap(long, short)]
+    #[serde(default = "serde_default_output")]
+    pub output: Option<String>,
+
+    #[clap(skip)]
+    #[merge(strategy = merge2::option::recursive)]
+    pub actions: Option<Action>,
 
     #[clap(flatten)]
     #[merge(strategy = merge2::option::recursive)]
@@ -182,7 +195,9 @@ impl Default for Config {
         Self {
             globals,
             config: None,
+            output: None,
             command: OsdType::Daemon,
+            actions: Some(Action::default()),
             window: Some(Default::default()),
             battery: Default::default(),
             urgency: UrgencyConfig {

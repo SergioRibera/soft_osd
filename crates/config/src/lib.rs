@@ -1,3 +1,4 @@
+mod action;
 mod battery;
 mod types;
 mod urgency;
@@ -6,6 +7,7 @@ use std::path::{Path, PathBuf};
 
 use merge2::Merge;
 
+pub use action::*;
 pub use battery::*;
 pub use clap::Parser;
 pub use directories::ProjectDirs;
@@ -44,7 +46,9 @@ pub fn get_config(args: &mut Config, project: &ProjectDirs) -> Option<(PathBuf, 
     if let Ok(cfg_content) = std::fs::read_to_string(&config_path) {
         // tracing::debug!("Merging from config file");
         println!("Merging from config file");
-        let mut config: Config = toml::from_str(&cfg_content).ok()?;
+        let mut config: Config = toml::from_str(&cfg_content)
+            .inspect_err(|e| println!("Cannot deserialize: {e:?}"))
+            .ok()?;
         config.merge(args);
         return Some((config_path, config));
     }

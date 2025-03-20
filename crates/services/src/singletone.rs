@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use zbus::{interface, proxy};
 
@@ -18,7 +19,7 @@ where
     L: SingletoneListener<Message>,
 {
     fn on_message(&mut self, msg: Message) {
-        self.lock().unwrap().on_message(msg);
+        self.lock().on_message(msg);
     }
 }
 
@@ -35,7 +36,7 @@ where
 {
     async fn process_message(&mut self, raw_message: Vec<u8>) -> zbus::fdo::Result<()> {
         let raw_message = unsafe { core::mem::transmute::<&[u8], &'static [u8]>(&raw_message) };
-        let message: GenericMessage<Message> = bincode::deserialize(&raw_message).unwrap();
+        let message: GenericMessage<Message> = bincode::deserialize(raw_message).unwrap();
         self.0.on_message(message.0);
         Ok(())
     }

@@ -36,6 +36,7 @@ pub trait Notification {
         ))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn notify(
         &mut self,
         id: u32,

@@ -1,20 +1,30 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 use std::time::Instant;
 
 use ::services::{Icon, ServiceBroadcast};
-use config::{Config, Urgency, UrgencyItemConfig};
+use config::{Config, InputAction, InputModifier, NotificationAction, Urgency, UrgencyItemConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
+use winit::dpi::LogicalPosition;
+use winit::event::{ButtonSource, FingerId, Modifiers, MouseScrollDelta, WindowEvent};
+use winit::keyboard::ModifiersKeyState;
 
+mod event_loop;
 mod services;
 
 use crate::components::{Background, Component, IconComponent, Slider, Text};
-use crate::utils::{ease_out_cubic, ToColor};
+use crate::utils::ToColor;
+
+use self::event_loop::{ContentState, WindowState};
+
+type Touch = (Option<LogicalPosition<f32>>, Option<LogicalPosition<f32>>);
 
 pub trait App: From<Config> + Sized + Sync + Send {
     fn show(&self) -> bool;
+    fn event(&mut self, _: &WindowEvent) {}
     fn update(&mut self, _: AppMessage) {}
+    fn get_output(&self) -> Option<String>;
     fn draw(&mut self, ctx: &mut DrawTarget);
 }
 
@@ -22,14 +32,17 @@ pub trait App: From<Config> + Sized + Sync + Send {
 pub enum AppMessage {
     Close,
     Slider {
+        id: Option<u32>,
         urgency: Urgency,
         icon: Option<Icon>,
         timeout: Option<i32>,
         value: f32,
         bg: Option<String>,
         fg: Option<String>,
+        output: Option<String>,
     },
     Notification {
+        id: Option<u32>,
         title: String,
         urgency: Urgency,
         icon: Option<Icon>,
@@ -37,12 +50,17 @@ pub enum AppMessage {
         body: Option<String>,
         bg: Option<String>,
         fg: Option<String>,
+        output: Option<String>,
     },
 }
 
-pub struct MainApp<'a> {
-    broadcast: Option<ServiceBroadcast<'a>>,
+pub struct MainApp {
+    broadcast: Option<ServiceBroadcast>,
     notified_levels: HashSet<u8>,
+    modifiers: Modifiers,
+    current_id: Option<u32>,
+    output: Option<String>,
+    touches: HashMap<FingerId, Touch>,
 
     fonts: FontSystem,
     sw_cache: SwashCache,
@@ -69,23 +87,9 @@ pub struct MainApp<'a> {
     show_duration: f32,
 }
 
-enum ContentState {
-    Idle,
-    Entering { start_time: Instant, progress: f32 },
-    Showing { start_time: Instant },
-    Exiting { start_time: Instant, progress: f32 },
-}
-
-enum WindowState {
-    Hidden,
-    Entering { start_time: Instant, progress: f32 },
-    Showing { start_time: Instant },
-    Exiting { start_time: Instant, progress: f32 },
-}
-
 pub static ICON_SIZE: RwLock<f32> = RwLock::new(12.0);
 
-impl<'a> From<Config> for MainApp<'a> {
+impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
         let show_duration = config.globals.show_duration.unwrap_or(5.0);
         let window = config.window.clone().unwrap_or_default();
@@ -106,6 +110,10 @@ impl<'a> From<Config> for MainApp<'a> {
         Self {
             broadcast: None,
             notified_levels: HashSet::new(),
+            modifiers: Modifiers::default(),
+            touches: HashMap::new(),
+            current_id: None,
+            output: config.output.clone(),
 
             fonts,
             icon_char,
@@ -131,146 +139,158 @@ impl<'a> From<Config> for MainApp<'a> {
     }
 }
 
-impl<'a> MainApp<'a> {
-    fn clear_content(&mut self) {
-        self.icon = None;
-        self.title = None;
-        self.slider = None;
-        self.description = None;
-    }
-
-    fn reset(&mut self) {
-        self.clear_content();
-        self.content_state = ContentState::Idle;
-        self.window_state = WindowState::Hidden;
-        self.show_duration = self.config.globals.show_duration.unwrap_or(5.0);
-    }
-
-    fn update_animation_states(&mut self, current_time: Instant) {
-        let animation_duration = self.config.globals.animation_duration.unwrap_or(1.0);
-        let show_duration = self.show_duration;
-
-        // Actualizar estado de la ventana
-        self.window_state = match &self.window_state {
-            WindowState::Hidden => WindowState::Hidden,
-
-            WindowState::Entering { start_time, .. } => {
-                let elapsed = current_time.duration_since(*start_time).as_secs_f32();
-                if elapsed >= animation_duration {
-                    WindowState::Showing {
-                        start_time: current_time,
-                    }
-                } else {
-                    WindowState::Entering {
-                        start_time: *start_time,
-                        progress: elapsed / animation_duration,
-                    }
-                }
-            }
-
-            WindowState::Showing { start_time } => {
-                let elapsed = current_time.duration_since(*start_time).as_secs_f32();
-                if elapsed >= show_duration {
-                    // Sincronizar la salida del contenido con la ventana
-                    self.content_state = ContentState::Exiting {
-                        start_time: current_time,
-                        progress: 0.0,
-                    };
-                    WindowState::Exiting {
-                        start_time: current_time,
-                        progress: 0.0,
-                    }
-                } else {
-                    WindowState::Showing {
-                        start_time: *start_time,
-                    }
-                }
-            }
-
-            WindowState::Exiting { start_time, .. } => {
-                let elapsed = current_time.duration_since(*start_time).as_secs_f32();
-                if elapsed >= animation_duration {
-                    WindowState::Hidden
-                } else {
-                    WindowState::Exiting {
-                        start_time: *start_time,
-                        progress: elapsed / animation_duration,
-                    }
-                }
-            }
-        };
-
-        // La actualización del estado del contenido ahora sigue al estado de la ventana
-        self.content_state = match &self.content_state {
-            ContentState::Idle => ContentState::Idle,
-
-            ContentState::Entering { start_time, .. } => {
-                let elapsed = current_time.duration_since(*start_time).as_secs_f32();
-                if elapsed >= animation_duration {
-                    ContentState::Showing {
-                        start_time: current_time,
-                    }
-                } else {
-                    ContentState::Entering {
-                        start_time: *start_time,
-                        progress: elapsed / animation_duration,
-                    }
-                }
-            }
-
-            ContentState::Showing { start_time } => match &self.window_state {
-                WindowState::Exiting { .. } => ContentState::Exiting {
-                    start_time: current_time,
-                    progress: 0.0,
-                },
-                _ => ContentState::Showing {
-                    start_time: *start_time,
-                },
-            },
-
-            ContentState::Exiting { start_time, .. } => {
-                let elapsed = current_time.duration_since(*start_time).as_secs_f32();
-                if elapsed >= animation_duration {
-                    ContentState::Idle
-                } else {
-                    ContentState::Exiting {
-                        start_time: *start_time,
-                        progress: elapsed / animation_duration,
-                    }
-                }
-            }
-        };
-    }
-
-    fn get_animation_progress(&self) -> (f32, f32) {
-        let window_progress = match &self.window_state {
-            WindowState::Hidden => 0.0,
-            WindowState::Entering { progress, .. } => ease_out_cubic(*progress),
-            WindowState::Showing { .. } => 1.0,
-            WindowState::Exiting { progress, .. } => 1.0 - ease_out_cubic(*progress),
-        };
-
-        let content_progress = match &self.content_state {
-            ContentState::Idle => 0.0,
-            ContentState::Entering { progress, .. } => ease_out_cubic(*progress),
-            ContentState::Showing { .. } => 1.0,
-            ContentState::Exiting { progress, .. } => 1.0 - ease_out_cubic(*progress),
-        };
-
-        (window_progress, content_progress)
-    }
-}
-
-impl<'a> App for MainApp<'a> {
+impl App for MainApp {
     fn show(&self) -> bool {
-        if matches!(self.window_state, WindowState::Hidden)
-            && matches!(self.content_state, ContentState::Idle)
-        {
-            return false;
-        }
-
         !matches!(self.window_state, WindowState::Hidden)
             || !matches!(self.content_state, ContentState::Idle)
+    }
+
+    fn get_output(&self) -> Option<String> {
+        self.output.clone()
+    }
+
+    fn event(&mut self, event: &WindowEvent) {
+        let Some(actions) = self.config.actions.clone() else {
+            return;
+        };
+        let curr_id = self.current_id;
+        let modifiers = if self.modifiers.lalt_state() == ModifiersKeyState::Pressed {
+            Some(InputModifier::Alt)
+        } else if self.modifiers.lcontrol_state() == ModifiersKeyState::Pressed {
+            Some(InputModifier::Ctrl)
+        } else if self.modifiers.lshift_state() == ModifiersKeyState::Pressed {
+            Some(InputModifier::Shift)
+        } else {
+            None
+        };
+        match event {
+            WindowEvent::PointerButton {
+                state,
+                position,
+                button,
+                ..
+            } => {
+                let position: winit::dpi::LogicalPosition<f32> = position.to_logical(1.0);
+                if *state == winit::event::ElementState::Pressed {
+                    if let ButtonSource::Touch { finger_id, .. } = button {
+                        self.touches.insert(*finger_id, (Some(position), None));
+                    }
+                    let input_action = match button {
+                        ButtonSource::Mouse(button) => match button {
+                            winit::event::MouseButton::Left => InputAction::LeftClick,
+                            winit::event::MouseButton::Middle => InputAction::MiddleClick,
+                            winit::event::MouseButton::Right => InputAction::RightClick,
+                            _ => return,
+                        },
+                        _ => {
+                            return;
+                        }
+                    };
+                    if let Some(input_event) = actions.get(&input_action) {
+                        if input_event
+                            .modifier
+                            .zip(modifiers)
+                            .is_some_and(|(m, em)| m == em)
+                            || input_event.modifier.is_none()
+                        {
+                            match input_event.action {
+                                NotificationAction::Close => {
+                                    self.update(AppMessage::Close);
+                                }
+                                NotificationAction::OpenNotification => {
+                                    if let (Some(broadcast), Some(curr_id)) =
+                                        (self.broadcast.clone(), curr_id)
+                                    {
+                                        tokio::spawn(async move {
+                                            broadcast
+                                                .notify_action::<Self>(curr_id, "default")
+                                                .await;
+                                        });
+                                        self.update(AppMessage::Close)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if *state == winit::event::ElementState::Released {
+                    let ButtonSource::Touch { finger_id, .. } = button else {
+                        return;
+                    };
+                    let Some((Some(start), _end)) = self.touches.get(finger_id) else {
+                        return;
+                    };
+                    let delta_x = (start.x - position.x).abs();
+                    let delta_y = start.y - position.y;
+                    let input_action = if delta_y > 50.0 && delta_x < 30.0 {
+                        InputAction::TouchSwipeUp
+                    } else if delta_y < 50.0 && delta_x < 30.0 {
+                        InputAction::TouchSwipeDown
+                    } else {
+                        return;
+                    };
+
+                    if let Some(input_event) = actions.get(&input_action) {
+                        if input_event
+                            .modifier
+                            .zip(modifiers)
+                            .is_some_and(|(m, em)| m == em)
+                            || input_event.modifier.is_none()
+                        {
+                            match input_event.action {
+                                NotificationAction::Close => self.update(AppMessage::Close),
+                                NotificationAction::OpenNotification => {
+                                    if let (Some(broadcast), Some(curr_id)) =
+                                        (self.broadcast.clone(), curr_id)
+                                    {
+                                        tokio::spawn(async move {
+                                            broadcast
+                                                .notify_action::<Self>(curr_id, "default")
+                                                .await;
+                                        });
+                                        self.update(AppMessage::Close)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            WindowEvent::ModifiersChanged(modifiers) => self.modifiers = *modifiers,
+            WindowEvent::MouseWheel { delta, .. } => {
+                let MouseScrollDelta::LineDelta(_, y) = delta else {
+                    return;
+                };
+                let input_action = if *y > 0.0 {
+                    InputAction::ScrollUp
+                } else {
+                    InputAction::ScrollDown
+                };
+                if let Some(input_event) = actions.get(&input_action) {
+                    if input_event
+                        .modifier
+                        .zip(modifiers)
+                        .is_some_and(|(m, em)| m == em)
+                        || input_event.modifier.is_none()
+                    {
+                        match input_event.action {
+                            NotificationAction::Close => self.update(AppMessage::Close),
+                            NotificationAction::OpenNotification => {
+                                if let (Some(broadcast), Some(curr_id)) =
+                                    (self.broadcast.clone(), curr_id)
+                                {
+                                    tokio::spawn(async move {
+                                        broadcast.notify_action::<Self>(curr_id, "default").await;
+                                    });
+                                    self.update(AppMessage::Close)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        };
     }
 
     fn update(&mut self, msg: AppMessage) {
@@ -281,6 +301,10 @@ impl<'a> App for MainApp<'a> {
         // Manejar estados de animación
         match self.window_state {
             WindowState::Hidden => {
+                if matches!(msg, AppMessage::Close) {
+                    return;
+                }
+                self.current_id = None;
                 // Si la ventana está oculta, iniciamos ambas animaciones
                 self.window_state = WindowState::Entering {
                     start_time: current_time,
@@ -308,32 +332,36 @@ impl<'a> App for MainApp<'a> {
 
         match msg {
             AppMessage::Slider {
+                id,
                 urgency,
                 icon,
                 timeout,
                 value,
                 bg,
                 fg,
+                output,
             } => {
                 self.clear_content();
+                self.current_id = id;
+                self.output = output;
 
                 let mut mult = 3.65;
                 let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 self.show_duration = timeout
                     .map(|t| t as f32)
-                    .or_else(|| urgency.show_duration)
-                    .or_else(|| self.config.globals.show_duration)
+                    .or(urgency.show_duration)
+                    .or(self.config.globals.show_duration)
                     .unwrap_or(5.0);
 
                 let fg = fg
-                    .or_else(|| urgency.foreground_color.clone())
-                    .or_else(|| self.config.globals.foreground_color.clone())
+                    .or(urgency.foreground_color.clone())
+                    .or(self.config.globals.foreground_color.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
                 let bg = bg
-                    .or_else(|| urgency.background.clone())
-                    .or_else(|| self.config.globals.background.clone())
+                    .or(urgency.background.clone())
+                    .or(self.config.globals.background.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
@@ -368,6 +396,7 @@ impl<'a> App for MainApp<'a> {
             }
 
             AppMessage::Notification {
+                id,
                 title,
                 urgency,
                 icon: i,
@@ -375,8 +404,12 @@ impl<'a> App for MainApp<'a> {
                 body: description,
                 bg,
                 fg,
+                output,
             } => {
                 self.clear_content();
+                self.current_id = id;
+                self.output = output;
+
                 let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 println!(
                     "Urgency: {urgency:?} - Global: {:?} - Global BG: {:?}",
@@ -384,19 +417,19 @@ impl<'a> App for MainApp<'a> {
                 );
                 self.show_duration = timeout
                     .map(|t| t as f32)
-                    .or_else(|| urgency.show_duration)
-                    .or_else(|| self.config.globals.show_duration)
+                    .or(urgency.show_duration)
+                    .or(self.config.globals.show_duration)
                     .unwrap_or(5.0);
 
                 let fg = fg
-                    .or_else(|| urgency.foreground_color.clone())
-                    .or_else(|| self.config.globals.foreground_color.clone())
+                    .or(urgency.foreground_color.clone())
+                    .or(self.config.globals.foreground_color.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
                 let bg = bg
-                    .or_else(|| urgency.background.clone())
-                    .or_else(|| self.config.globals.background.clone())
+                    .or(urgency.background.clone())
+                    .or(self.config.globals.background.clone())
                     .as_deref()
                     .map(ToColor::to_color)
                     .unwrap();
@@ -476,7 +509,6 @@ impl<'a> App for MainApp<'a> {
                     progress: 0.0,
                 };
                 self.show_duration = 0.0;
-                return;
             }
         }
     }

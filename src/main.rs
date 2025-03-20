@@ -1,7 +1,8 @@
-use std::cell::OnceCell;
-use std::sync::{Arc, Mutex};
+use parking_lot::Mutex;
+use std::sync::{Arc, OnceLock};
 
 mod app;
+mod buffer;
 mod components;
 mod utils;
 mod window;
@@ -11,7 +12,7 @@ use config::{get_config, write_default, Config, OsdType, Parser, ProjectDirs};
 use services::ServiceManager;
 use window::Window;
 
-const PROJECT_PATH: OnceCell<ProjectDirs> = OnceCell::new();
+static PROJECT_PATH: OnceLock<ProjectDirs> = OnceLock::new();
 
 #[tokio::main]
 async fn main() {
@@ -59,11 +60,17 @@ async fn main() {
             });
         } else {
             manager
-                .send((global.background, global.foreground_color, command))
+                .send((
+                    config.output.clone(),
+                    global.background,
+                    global.foreground_color,
+                    command,
+                ))
                 .await
                 .unwrap();
             return;
         }
     }
+
     Window::run(app, config)
 }

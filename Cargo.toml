@@ -17,23 +17,45 @@ opt-level = 3
 codegen-units = 1
 
 [workspace]
-members = [ "crates/config","crates/raqote_svg", "crates/services"]
+members = ["crates/config", "crates/raqote_svg", "crates/services"]
 
 [workspace.dependencies]
-image = { version = "0.25.5", default-features = false, features = ["png", "jpeg", "serde"] }
+image = { version = "0.25.5", default-features = false, features = [
+    "png",
+    "jpeg",
+    "serde",
+] }
+parking_lot = "0.12"
 raqote = { version = "0.8.5", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1.42.0", default-features = false, features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.42.0", default-features = false, features = [
+    "macros",
+    "rt-multi-thread",
+] }
 zbus = { version = "5.1.0", default-features = false, features = ["tokio"] }
 
 [dependencies]
 config = { version = "0.1.0", path = "crates/config" }
 cosmic-text = "0.12.1"
-image.workspace = true
+parking_lot.workspace = true
 raqote.workspace = true
 smithay-client-toolkit = "0.19.2"
-wayland-client = "0.31.7"
 tokio.workspace = true
 zbus.workspace = true
-serde.workspace = true
 services = { version = "0.1.0", path = "crates/services" }
+winit = { version = "0.30.5", git = "https://github.com/SergioRibera/winit", branch = "layer_shell", default-features = false, features = [
+    "x11",
+    "wayland",
+] }
+rustix = { version = "0.38", features = [
+    "fs",
+    "mm",
+    "shm",
+    "std",
+], default-features = false }
+x11rb = { version = "0.13.0", features = ["allow-unsafe-code", "shm"] }
+tiny-xlib = { version = "0.2.1", default-features = false }
+bytemuck = { version = "1.12.3" }
+fastrand = { version = "2.0.0" }
+memmap2 = { version = "0.9.0" }
+as-raw-xcb-connection = "1.0.1"
