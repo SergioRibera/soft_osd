@@ -65,9 +65,10 @@ fn create_window<T: AppTy>(
         OsdPosition::Right => (sw as u32 - w, (sh as u32 / 2) - h / 2),
         OsdPosition::Bottom => ((sw as u32 / 2) - w / 2, sh as u32 - h),
     };
+    let screen = monitor_mode.monitor();
     println!(
         "Screen({:?}): ({sw}, {sh}) => {:?} ({x}, {y}, {w}, {h})",
-        monitor_mode.monitor().name(),
+        screen.name(),
         app.position
     );
 
@@ -77,13 +78,14 @@ fn create_window<T: AppTy>(
             .with_layer(Layer::Overlay)
             .with_margin(y as i32, x as i32, 0, x as i32)
             .with_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
-            .with_output(monitor_mode.monitor().native_id())
+            .with_output(screen.native_id())
     } else {
         window_attrs.with_position(LogicalPosition::new(x, y))
     };
 
     Some(WindowState::new(
         app,
+        screen.name().unwrap_or(screen.native_id().to_string()),
         event_loop.create_window(window_attrs).unwrap(),
     ))
 }
@@ -129,7 +131,7 @@ impl<T: AppTy> Window<T> {
         event_loop.run_app(&mut app).unwrap();
     }
 
-    pub fn draw(&mut self, event: &WindowEvent) -> bool {
+    pub fn draw(&mut self, event: &WindowEvent) -> (Option<String>, bool) {
         let mut render = self.render.lock();
         render.event(event);
         let show = render.show();
@@ -146,7 +148,7 @@ impl<T: AppTy> Window<T> {
             render.draw(&mut self.context);
         }
 
-        show
+        (render.get_output(), show)
     }
 }
 
@@ -157,6 +159,11 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             .with_transparent(true)
             .with_surface_size(LogicalSize::new(self.width, self.height))
             .with_window_level(winit::window::WindowLevel::AlwaysOnTop);
+
+        let output = {
+            let lock = self.render.lock();
+            lock.get_output()
+        };
 
         #[cfg(target_os = "linux")]
         match std::env::var("X11_VISUAL_ID") {
@@ -179,16 +186,19 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             ),
         }
 
-        for (i, screen) in event_loop.available_monitors().into_iter().enumerate() {
+        for screen in event_loop.available_monitors().into_iter() {
             let Some(mode) = screen.current_video_mode() else {
                 continue;
             };
+            let name = screen.name().unwrap_or(screen.native_id().to_string());
+            if output.as_ref().is_some_and(|o| *o != name) {
+                continue;
+            }
             let window_attributes = window_attributes.clone();
             let Some(window_state) = create_window(
                 self,
                 event_loop,
-                window_attributes
-                    .with_title(format!("__sosd_{}", screen.name().unwrap_or(i.to_string()))),
+                window_attributes.with_title(format!("__sosd_{name}")),
                 screen.scale_factor(),
                 mode,
             ) else {
@@ -226,8 +236,12 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
         if !self.windows.contains_key(&window_id) {
             return;
         }
-        let can_show = self.draw(&event);
+        let (window_draw, can_show) = self.draw(&event);
         let window = self.windows.get_mut(&window_id).unwrap();
+
+        if window_draw.as_ref().is_some_and(|o| *o != window.output) {
+            return;
+        }
 
         match event {
             // WindowEvent::Destroyed => todo!(),
@@ -262,6 +276,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
 
 /// State of the window.
 struct WindowState {
+    output: String,
     /// Render surface.
     ///
     /// NOTE: This surface must be dropped before the `Window`.
@@ -271,7 +286,11 @@ struct WindowState {
 }
 
 impl WindowState {
-    fn new<T: AppTy>(app: &Window<T>, window: Box<dyn winit::window::Window>) -> Self {
+    fn new<T: AppTy>(
+        app: &Window<T>,
+        output: String,
+        window: Box<dyn winit::window::Window>,
+    ) -> Self {
         let window: Arc<dyn winit::window::Window> = Arc::from(window);
 
         // SAFETY: the surface is dropped before the `window` which provided it with handle, thus
@@ -284,7 +303,11 @@ impl WindowState {
             )
             .unwrap();
 
-        let state = Self { buffer, window };
+        let state = Self {
+            output,
+            buffer,
+            window,
+        };
 
         state
     }

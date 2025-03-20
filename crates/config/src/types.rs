@@ -15,6 +15,10 @@ pub enum OsdPosition {
     Bottom,
 }
 
+fn serde_default_output() -> Option<String> {
+    None
+}
+
 #[derive(Debug, Clone, PartialEq, Parser, Serialize, Deserialize, Merge)]
 #[clap(author, version)]
 pub struct Config {
@@ -26,6 +30,11 @@ pub struct Config {
     #[clap(flatten)]
     #[serde(flatten)]
     pub globals: Global,
+
+    /// Output Screen where notification has been showed
+    #[clap(long, short)]
+    #[serde(default = "serde_default_output")]
+    pub output: Option<String>,
 
     #[clap(skip)]
     #[merge(strategy = merge2::option::recursive)]
@@ -186,6 +195,7 @@ impl Default for Config {
         Self {
             globals,
             config: None,
+            output: None,
             command: OsdType::Daemon,
             actions: Some(Action::default()),
             window: Some(Default::default()),

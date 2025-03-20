@@ -61,7 +61,12 @@ async fn main() {
             });
         } else {
             manager
-                .send((global.background, global.foreground_color, command))
+                .send((
+                    config.output.clone(),
+                    global.background,
+                    global.foreground_color,
+                    command,
+                ))
                 .await
                 .unwrap();
             return;

@@ -29,6 +29,7 @@ impl Notification for MainApp {
                 bg: None,
                 fg: None,
                 id: Some(id),
+                output: None,
             })
         } else {
             self.update(AppMessage::Notification {
@@ -40,6 +41,7 @@ impl Notification for MainApp {
                 bg: None,
                 fg: None,
                 id: Some(id),
+                output: None,
             })
         }
         Ok(id)
@@ -63,6 +65,7 @@ impl ServiceReceive for MainApp {
                     // Send Notification
                     self.update(AppMessage::Slider {
                         id: None,
+                        output: None,
                         urgency: config::Urgency::Normal,
                         icon: (config.icon.clone(), self.get_icon_size()).try_into().ok(),
                         timeout: config.show_duration.map(|d| d as i32),
@@ -88,8 +91,11 @@ impl ServiceReceive for MainApp {
     }
 }
 
-impl SingletoneListener<(Option<String>, Option<String>, OsdType)> for MainApp {
-    fn on_message(&mut self, (bg, fg, msg): (Option<String>, Option<String>, OsdType)) {
+impl SingletoneListener<(Option<String>, Option<String>, Option<String>, OsdType)> for MainApp {
+    fn on_message(
+        &mut self,
+        (o, bg, fg, msg): (Option<String>, Option<String>, Option<String>, OsdType),
+    ) {
         let msg = match msg {
             OsdType::Daemon => None,
             OsdType::Init => None,
@@ -104,6 +110,7 @@ impl SingletoneListener<(Option<String>, Option<String>, OsdType)> for MainApp {
                 fg,
                 title,
                 body,
+                output: o,
                 urgency: urgency.unwrap_or_default(),
                 icon: image.and_then(|image| (image, self.get_icon_size()).try_into().ok()),
                 id: None,
@@ -116,6 +123,7 @@ impl SingletoneListener<(Option<String>, Option<String>, OsdType)> for MainApp {
             } => Some(AppMessage::Slider {
                 bg,
                 fg,
+                output: o,
                 value: value as f32,
                 urgency: urgency.unwrap_or_default(),
                 icon: image.and_then(|image| (image, self.get_icon_size()).try_into().ok()),
