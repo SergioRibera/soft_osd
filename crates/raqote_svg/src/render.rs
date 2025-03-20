@@ -2,7 +2,7 @@ use raqote::{DrawOptions, DrawTarget, PathBuilder, SolidSource, Source};
 use svg::node::element::path::Command;
 use svg::parser::{Event, Parser};
 
-pub fn render<'a>(tree: Parser<'a>, draw: &mut DrawTarget) {
+pub fn render(tree: Parser<'_>, draw: &mut DrawTarget) {
     let mut scale_x = 1.0;
     let mut scale_y = 1.0;
 
