@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use zbus::{interface, proxy};
 
@@ -18,7 +19,7 @@ where
     L: SingletoneListener<Message>,
 {
     fn on_message(&mut self, msg: Message) {
-        self.lock().unwrap().on_message(msg);
+        self.lock().on_message(msg);
     }
 }
 

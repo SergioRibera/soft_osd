@@ -1,5 +1,6 @@
+use parking_lot::Mutex;
 use std::cell::OnceCell;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 mod app;
 mod buffer;

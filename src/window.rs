@@ -1,19 +1,18 @@
-use std::{
-    collections::HashMap,
-    num::NonZero,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, num::NonZero, sync::Arc};
 
+use parking_lot::Mutex;
 use raqote::DrawTarget;
-use smithay_client_toolkit::shell::wlr_layer::{Anchor, Layer};
 use winit::{
     application::ApplicationHandler,
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
+    dpi::{LogicalPosition, LogicalSize},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
     monitor::VideoModeHandle,
     platform::{
-        wayland::{MonitorHandleExtWayland, WindowAttributesExtWayland, WindowExtWayland},
+        wayland::{
+            Anchor, Layer, MonitorHandleExtWayland, Region, WindowAttributesExtWayland,
+            WindowExtWayland,
+        },
         x11::WindowAttributesExtX11,
     },
     window::{WindowAttributes, WindowId},
@@ -41,8 +40,10 @@ pub struct Window<T: AppTy> {
     // Inputs
     // region: WlRegion,
     active_input: bool,
-    safe_area: Option<(LogicalPosition<i32>, LogicalSize<i32>)>,
-    passthrought_area: Option<(LogicalPosition<i32>, LogicalSize<i32>)>,
+    safe_left: i32,
+    max_width: i32,
+    safe_area: Option<Region>,
+    passthrought_area: Option<Region>,
     // Variables para rastrear el gesto
     touches: HashMap<i32, (Option<(f64, f64)>, Option<(f64, f64)>)>, // (start_position, end_position)
 }
@@ -73,12 +74,11 @@ fn create_window<T: AppTy>(
     );
 
     let window_attrs = if is_wayland() {
-        let (pos, size) = app.passthrought_area.unwrap();
         window_attrs
             .with_anchor(Anchor::LEFT | Anchor::TOP | Anchor::RIGHT)
             .with_layer(Layer::Overlay)
             .with_margin(y as i32, x as i32, 0, x as i32)
-            .with_region(pos, size)
+            .with_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
             .with_output(monitor_mode.monitor().native_id())
     } else {
         window_attrs.with_position(LogicalPosition::new(x, y))
@@ -123,20 +123,17 @@ impl<T: AppTy> Window<T> {
             position,
             active_input: false,
             touches: HashMap::new(),
-            safe_area: Some((
-                LogicalPosition::new(safe_left as i32, 0),
-                LogicalSize::new(max_width as i32, height as i32),
-            )),
-            passthrought_area: Some((LogicalPosition::new(0, 0), LogicalSize::new(0, 0))),
+            safe_area: None,
+            passthrought_area: None,
+            max_width: max_width as i32,
+            safe_left: safe_left as i32,
         };
 
         event_loop.run_app(&mut app).unwrap();
     }
 
     pub fn draw(&mut self) -> bool {
-        let Ok(mut render) = self.render.lock() else {
-            return false;
-        };
+        let mut render = self.render.lock();
         let show = render.show();
 
         // Draw to the window:
@@ -200,6 +197,23 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
                 continue;
             };
             let window_id = window_state.window.id();
+            if self.safe_area.is_none() {
+                self.safe_area.replace(
+                    window_state
+                        .window
+                        .create_region(
+                            LogicalPosition::new(self.safe_left, 0),
+                            LogicalSize::new(self.max_width, self.height as i32),
+                        )
+                        .unwrap(),
+                );
+                self.passthrought_area.replace(
+                    window_state
+                        .window
+                        .create_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
+                        .unwrap(),
+                );
+            }
             println!("Created new window with id={window_id:?}");
             self.windows.insert(window_id, window_state);
         }
@@ -219,39 +233,12 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
 
         match event {
             // WindowEvent::Destroyed => todo!(),
-            WindowEvent::PointerMoved { position, .. } => {
-                window.cursor_position.replace(position);
-                window.window.request_redraw();
-            }
-            WindowEvent::PointerEntered { position, .. } => {
-                window.cursor_position.replace(position);
-                window.window.request_redraw();
-            }
-            e @ WindowEvent::PointerLeft { position, .. } => {
-                window.cursor_position = position;
-                window.window.request_redraw();
-                {
-                    let Ok(mut render) = self.render.lock() else {
-                        return;
-                    };
-                    render.event(e);
-                }
-            }
-            e @ WindowEvent::MouseWheel { .. } => {
-                let Ok(mut render) = self.render.lock() else {
-                    return;
-                };
-                render.event(e);
-            }
             WindowEvent::RedrawRequested => {
                 window.draw(self.context.get_data());
                 window.window.request_redraw();
             }
             e => {
-                let Ok(mut render) = self.render.lock() else {
-                    return;
-                };
-                render.event(e);
+                self.render.lock().event(e);
             }
         }
 
@@ -261,16 +248,15 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             if !self.active_input {
                 self.active_input = true;
                 for window in self.windows.values_mut() {
-                    window.window.set_region(self.safe_area);
+                    window.window.set_region(self.safe_area.as_ref());
                 }
                 println!("Active input");
             }
         } else {
             if self.active_input {
-                println!("About to Wait");
                 self.active_input = false;
                 for window in self.windows.values_mut() {
-                    window.window.set_region(self.passthrought_area);
+                    window.window.set_region(self.passthrought_area.as_ref());
                 }
                 println!("Disable input");
             }
@@ -286,8 +272,6 @@ struct WindowState {
     pub buffer: Buffer<Arc<dyn winit::window::Window>>,
     /// The actual winit Window.
     pub window: Arc<dyn winit::window::Window>,
-    /// Cursor position over the window.
-    pub cursor_position: Option<PhysicalPosition<f64>>,
 }
 
 impl WindowState {
@@ -304,11 +288,7 @@ impl WindowState {
             )
             .unwrap();
 
-        let state = Self {
-            buffer,
-            window,
-            cursor_position: Default::default(),
-        };
+        let state = Self { buffer, window };
 
         state
     }

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::ops::Not;
 use std::sync::atomic::AtomicU32;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use config::Urgency;
+use parking_lot::Mutex;
 use zbus::fdo::Result;
 use zbus::interface;
 use zbus::object_server::SignalEmitter;
@@ -35,7 +36,7 @@ impl<T: Notification + 'static> NotificationIPC<T> {
     /// "persistence"	The server supports persistence of notifications. Notifications will be retained until they are acknowledged or removed by the user or recalled by the sender. The presence of this capability allows clients to depend on the server to ensure a notification is seen and eliminate the need for the client to display a reminding function (such as a status icon) of its own.
     /// "sound"	The server supports sounds on notifications. If returned, the server must support the "sound-file" and "suppress-sound" hints.
     fn get_capabilities(&self) -> Result<Vec<&'static str>> {
-        self.0.lock().unwrap().get_capabilities()
+        self.0.lock().get_capabilities()
     }
 
     ///
@@ -67,7 +68,7 @@ impl<T: Notification + 'static> NotificationIPC<T> {
         hints: HashMap<String, zbus::zvariant::Value>,
         expire_timeout: i32,
     ) -> Result<u32> {
-        let mut inner = self.0.lock().unwrap();
+        let mut inner = self.0.lock();
         let icon_size = inner.get_icon_size();
         // The spec says that:
         // If `replaces_id` is 0, we should create a fresh id and notification.
@@ -151,12 +152,12 @@ impl<T: Notification + 'static> NotificationIPC<T> {
     }
 
     fn close_notification(&self, id: u32) -> Result<()> {
-        self.0.lock().unwrap().close_notification(id)
+        self.0.lock().close_notification(id)
     }
 
     #[zbus(out_args("name", "vendor", "version", "spec_version"))]
     fn get_server_information(&self) -> Result<(String, String, String, String)> {
-        self.0.lock().unwrap().get_server_information()
+        self.0.lock().get_server_information()
     }
 
     #[zbus(signal)]

@@ -4,9 +4,10 @@ mod singletone;
 
 pub mod error;
 
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 use zbus::connection::Builder;
@@ -93,8 +94,9 @@ where
             },
             singletone: None,
         };
-        receiver.lock().unwrap().set_broadcast(broadcast.clone());
-        receiver.clear_poison(); // probably not needed, but its for prevent
+        {
+            receiver.lock().set_broadcast(broadcast.clone());
+        }
 
         Self {
             receiver,
@@ -129,9 +131,7 @@ where
     pub async fn run(&self) {
         loop {
             if let Some(battery) = self.battery.as_ref() {
-                let Ok(mut receiver) = self.receiver.lock() else {
-                    continue;
-                };
+                let mut receiver = self.receiver.lock();
                 self.battery_levels.iter().for_each(|l| {
                     let batteries_below = battery.batteries_below(*l);
                     if !batteries_below.is_empty() {
