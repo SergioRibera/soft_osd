@@ -9,10 +9,7 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop},
     monitor::VideoModeHandle,
     platform::{
-        wayland::{
-            Anchor, Layer, MonitorHandleExtWayland, Region, WindowAttributesExtWayland,
-            WindowExtWayland,
-        },
+        wayland::{Anchor, Layer, Region, WindowAttributesExtWayland, WindowExtWayland},
         x11::WindowAttributesExtX11,
     },
     window::{WindowAttributes, WindowId},
@@ -48,6 +45,7 @@ pub struct Window<T: AppTy> {
 
 fn create_window<T: AppTy>(
     app: &Window<T>,
+    output: String,
     event_loop: &dyn ActiveEventLoop,
     window_attrs: WindowAttributes,
     scale_factor: f64,
@@ -73,6 +71,8 @@ fn create_window<T: AppTy>(
     );
 
     let window_attrs = if is_wayland() {
+        use winit::platform::wayland::MonitorHandleExtWayland;
+
         window_attrs
             .with_anchor(Anchor::LEFT | Anchor::TOP | Anchor::RIGHT)
             .with_layer(Layer::Overlay)
@@ -85,7 +85,7 @@ fn create_window<T: AppTy>(
 
     Some(WindowState::new(
         app,
-        screen.name().unwrap_or(screen.native_id().to_string()),
+        output,
         event_loop.create_window(window_attrs).unwrap(),
     ))
 }
@@ -190,22 +190,31 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             let Some(mode) = screen.current_video_mode() else {
                 continue;
             };
-            let name = screen.name().unwrap_or(screen.native_id().to_string());
+            let name = if is_wayland() {
+                use winit::platform::wayland::MonitorHandleExtWayland;
+                screen.name().unwrap_or(screen.native_id().to_string())
+            } else {
+                use winit::platform::x11::MonitorHandleExtX11;
+                screen.name().unwrap_or(screen.native_id().to_string())
+            };
             if output.as_ref().is_some_and(|o| *o != name) {
                 continue;
             }
-            let window_attributes = window_attributes.clone();
+            let window_attributes = window_attributes
+                .clone()
+                .with_title(format!("__sosd_{name}"));
             let Some(window_state) = create_window(
                 self,
+                name,
                 event_loop,
-                window_attributes.with_title(format!("__sosd_{name}")),
+                window_attributes,
                 screen.scale_factor(),
                 mode,
             ) else {
                 continue;
             };
             let window_id = window_state.window.id();
-            if self.safe_area.is_none() {
+            if self.safe_area.is_none() && is_wayland() {
                 self.safe_area.replace(
                     window_state
                         .window
@@ -255,7 +264,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
         // If the logic is collapsed not works :(
         #[allow(clippy::collapsible_if)]
         if can_show {
-            if !self.active_input {
+            if !self.active_input && is_wayland() {
                 self.active_input = true;
                 for window in self.windows.values_mut() {
                     window.window.set_region(self.safe_area.as_ref());
@@ -263,7 +272,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
                 println!("Active input");
             }
         } else {
-            if self.active_input {
+            if self.active_input && is_wayland() {
                 self.active_input = false;
                 for window in self.windows.values_mut() {
                     window.window.set_region(self.passthrought_area.as_ref());
