@@ -132,8 +132,9 @@ impl<T: AppTy> Window<T> {
         event_loop.run_app(&mut app).unwrap();
     }
 
-    pub fn draw(&mut self) -> bool {
+    pub fn draw(&mut self, event: &WindowEvent) -> bool {
         let mut render = self.render.lock();
+        render.event(event);
         let show = render.show();
 
         // Draw to the window:
@@ -228,7 +229,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
         if !self.windows.contains_key(&window_id) {
             return;
         }
-        let can_show = self.draw();
+        let can_show = self.draw(&event);
         let window = self.windows.get_mut(&window_id).unwrap();
 
         match event {
@@ -237,9 +238,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
                 window.draw(self.context.get_data());
                 window.window.request_redraw();
             }
-            e => {
-                self.render.lock().event(e);
-            }
+            _ => {}
         }
 
         // If the logic is collapsed not works :(

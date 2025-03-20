@@ -20,7 +20,7 @@ use self::event_loop::{ContentState, WindowState};
 
 pub trait App: From<Config> + Sized + Sync + Send {
     fn show(&self) -> bool;
-    fn event(&mut self, _: WindowEvent) {}
+    fn event(&mut self, _: &WindowEvent) {}
     fn update(&mut self, _: AppMessage) {}
     fn draw(&mut self, ctx: &mut DrawTarget);
 }
@@ -134,7 +134,7 @@ impl<'a> App for MainApp<'a> {
             || !matches!(self.content_state, ContentState::Idle)
     }
 
-    fn event(&mut self, event: WindowEvent) {
+    fn event(&mut self, event: &WindowEvent) {
         let Some(actions) = self.config.actions.as_ref() else {
             return;
         };
@@ -155,9 +155,9 @@ impl<'a> App for MainApp<'a> {
                 ..
             } => {
                 let position: winit::dpi::LogicalPosition<f32> = position.to_logical(1.0);
-                if state == winit::event::ElementState::Pressed {
+                if *state == winit::event::ElementState::Pressed {
                     if let ButtonSource::Touch { finger_id, .. } = button {
-                        self.touches.insert(finger_id, (Some(position), None));
+                        self.touches.insert(*finger_id, (Some(position), None));
                     }
                     let input_action = match button {
                         ButtonSource::Mouse(button) => match button {
@@ -188,7 +188,7 @@ impl<'a> App for MainApp<'a> {
                         }
                     }
                 }
-                if state == winit::event::ElementState::Released {
+                if *state == winit::event::ElementState::Released {
                     let ButtonSource::Touch { finger_id, .. } = button else {
                         return;
                     };
@@ -222,12 +222,12 @@ impl<'a> App for MainApp<'a> {
                     }
                 }
             }
-            WindowEvent::ModifiersChanged(modifiers) => self.modifiers = modifiers,
+            WindowEvent::ModifiersChanged(modifiers) => self.modifiers = *modifiers,
             WindowEvent::MouseWheel { delta, .. } => {
                 let MouseScrollDelta::LineDelta(_, y) = delta else {
                     return;
                 };
-                let input_action = if y > 0.0 {
+                let input_action = if *y > 0.0 {
                     InputAction::ScrollUp
                 } else {
                     InputAction::ScrollDown
