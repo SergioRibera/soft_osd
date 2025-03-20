@@ -26,24 +26,24 @@ use self::singletone::GenericMessage;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub trait ServiceReceive<'a> {
-    fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>);
+pub trait ServiceReceive {
+    fn set_broadcast(&mut self, broadcast: ServiceBroadcast);
     fn batteries_below(&mut self, level: u8, batteries: &[Battery]);
 }
 
 // This send to app to call actions who is hear by this crate
 #[derive(Clone)]
-pub struct ServiceBroadcast<'a> {
+pub struct ServiceBroadcast {
     notification: Option<Connection>,
-    singletone: Option<SingletoneClientProxy<'a>>,
+    singletone: Option<SingletoneClientProxy<'static>>,
 }
 
-pub struct ServiceManager<'a, T, Message>
+pub struct ServiceManager<T, Message>
 where
-    T: Notification + ServiceReceive<'a>,
+    T: Notification + ServiceReceive,
 {
     is_daemon: bool,
-    broadcast: ServiceBroadcast<'a>,
+    broadcast: ServiceBroadcast,
     battery: Option<BatteryManager>,
     refresh_time: Duration,
     battery_levels: Vec<u8>,
@@ -51,9 +51,9 @@ where
     _msg: PhantomData<Message>,
 }
 
-impl<'a> ServiceBroadcast<'a> {
+impl ServiceBroadcast {
     pub async fn notify_action<T: Notification + 'static>(&self, id: u32, action: &str) {
-        let Some(notification) = self.notification.as_ref() else {
+        let Some(notification) = self.notification.clone() else {
             return;
         };
 
@@ -68,9 +68,9 @@ impl<'a> ServiceBroadcast<'a> {
     }
 }
 
-impl<'a, T, Message> ServiceManager<'a, T, Message>
+impl<T, Message> ServiceManager<T, Message>
 where
-    T: Notification + ServiceReceive<'a> + SingletoneListener<Message> + 'static,
+    T: Notification + ServiceReceive + SingletoneListener<Message> + 'static,
     Message: Serialize + Deserialize<'static> + Send + Sync + 'static,
 {
     pub async fn new(is_daemon: bool, receiver: Arc<Mutex<T>>) -> Self {

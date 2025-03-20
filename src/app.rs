@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 use std::time::Instant;
 
-use ::services::{Icon, ServiceBroadcast};
+use ::services::{Icon, Notification, ServiceBroadcast};
 use config::{Config, InputAction, InputModifier, NotificationAction, Urgency, UrgencyItemConfig};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
 use raqote::*;
@@ -29,6 +29,7 @@ pub trait App: From<Config> + Sized + Sync + Send {
 pub enum AppMessage {
     Close,
     Slider {
+        id: Option<u32>,
         urgency: Urgency,
         icon: Option<Icon>,
         timeout: Option<i32>,
@@ -37,6 +38,7 @@ pub enum AppMessage {
         fg: Option<String>,
     },
     Notification {
+        id: Option<u32>,
         title: String,
         urgency: Urgency,
         icon: Option<Icon>,
@@ -47,10 +49,11 @@ pub enum AppMessage {
     },
 }
 
-pub struct MainApp<'a> {
-    broadcast: Option<ServiceBroadcast<'a>>,
+pub struct MainApp {
+    broadcast: Option<ServiceBroadcast>,
     notified_levels: HashSet<u8>,
     modifiers: Modifiers,
+    current_id: Option<u32>,
     touches: HashMap<FingerId, (Option<LogicalPosition<f32>>, Option<LogicalPosition<f32>>)>,
 
     fonts: FontSystem,
@@ -80,7 +83,7 @@ pub struct MainApp<'a> {
 
 pub static ICON_SIZE: RwLock<f32> = RwLock::new(12.0);
 
-impl<'a> From<Config> for MainApp<'a> {
+impl From<Config> for MainApp {
     fn from(config: Config) -> Self {
         let show_duration = config.globals.show_duration.unwrap_or(5.0);
         let window = config.window.clone().unwrap_or_default();
@@ -103,6 +106,7 @@ impl<'a> From<Config> for MainApp<'a> {
             notified_levels: HashSet::new(),
             modifiers: Modifiers::default(),
             touches: HashMap::new(),
+            current_id: None,
 
             fonts,
             icon_char,
@@ -128,16 +132,17 @@ impl<'a> From<Config> for MainApp<'a> {
     }
 }
 
-impl<'a> App for MainApp<'a> {
+impl App for MainApp {
     fn show(&self) -> bool {
         !matches!(self.window_state, WindowState::Hidden)
             || !matches!(self.content_state, ContentState::Idle)
     }
 
     fn event(&mut self, event: &WindowEvent) {
-        let Some(actions) = self.config.actions.as_ref() else {
+        let Some(actions) = self.config.actions.clone() else {
             return;
         };
+        let curr_id = self.current_id.clone();
         let modifiers = if self.modifiers.lalt_state() == ModifiersKeyState::Pressed {
             Some(InputModifier::Alt)
         } else if self.modifiers.lcontrol_state() == ModifiersKeyState::Pressed {
@@ -179,10 +184,19 @@ impl<'a> App for MainApp<'a> {
                         {
                             match input_event.action {
                                 NotificationAction::Close => {
-                                    println!("Close");
+                                    self.update(AppMessage::Close);
                                 }
                                 NotificationAction::OpenNotification => {
-                                    println!("Callback to notification");
+                                    if let (Some(broadcast), Some(curr_id)) =
+                                        (self.broadcast.clone(), curr_id)
+                                    {
+                                        tokio::spawn(async move {
+                                            broadcast
+                                                .notify_action::<Self>(curr_id, "default")
+                                                .await;
+                                        });
+                                        self.update(AppMessage::Close)
+                                    }
                                 }
                             }
                         }
@@ -215,7 +229,16 @@ impl<'a> App for MainApp<'a> {
                             match input_event.action {
                                 NotificationAction::Close => self.update(AppMessage::Close),
                                 NotificationAction::OpenNotification => {
-                                    println!("Callback to notification");
+                                    if let (Some(broadcast), Some(curr_id)) =
+                                        (self.broadcast.clone(), curr_id)
+                                    {
+                                        tokio::spawn(async move {
+                                            broadcast
+                                                .notify_action::<Self>(curr_id, "default")
+                                                .await;
+                                        });
+                                        self.update(AppMessage::Close)
+                                    }
                                 }
                             }
                         }
@@ -242,7 +265,14 @@ impl<'a> App for MainApp<'a> {
                         match input_event.action {
                             NotificationAction::Close => self.update(AppMessage::Close),
                             NotificationAction::OpenNotification => {
-                                println!("Callback to notification");
+                                if let (Some(broadcast), Some(curr_id)) =
+                                    (self.broadcast.clone(), curr_id)
+                                {
+                                    tokio::spawn(async move {
+                                        broadcast.notify_action::<Self>(curr_id, "default").await;
+                                    });
+                                    self.update(AppMessage::Close)
+                                }
                             }
                         }
                     }
@@ -263,6 +293,7 @@ impl<'a> App for MainApp<'a> {
                 if matches!(msg, AppMessage::Close) {
                     return;
                 }
+                self.current_id = None;
                 // Si la ventana está oculta, iniciamos ambas animaciones
                 self.window_state = WindowState::Entering {
                     start_time: current_time,
@@ -290,6 +321,7 @@ impl<'a> App for MainApp<'a> {
 
         match msg {
             AppMessage::Slider {
+                id,
                 urgency,
                 icon,
                 timeout,
@@ -298,6 +330,7 @@ impl<'a> App for MainApp<'a> {
                 fg,
             } => {
                 self.clear_content();
+                self.current_id = id;
 
                 let mut mult = 3.65;
                 let urgency = UrgencyItemConfig::from((&self.config, urgency));
@@ -350,6 +383,7 @@ impl<'a> App for MainApp<'a> {
             }
 
             AppMessage::Notification {
+                id,
                 title,
                 urgency,
                 icon: i,
@@ -359,6 +393,7 @@ impl<'a> App for MainApp<'a> {
                 fg,
             } => {
                 self.clear_content();
+                self.current_id = id;
                 let urgency = UrgencyItemConfig::from((&self.config, urgency));
                 println!(
                     "Urgency: {urgency:?} - Global: {:?} - Global BG: {:?}",

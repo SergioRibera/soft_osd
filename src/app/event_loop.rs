@@ -18,7 +18,7 @@ pub(super) enum WindowState {
     Exiting { start_time: Instant, progress: f32 },
 }
 
-impl<'a> MainApp<'a> {
+impl MainApp {
     pub(super) fn clear_content(&mut self) {
         self.icon = None;
         self.title = None;
