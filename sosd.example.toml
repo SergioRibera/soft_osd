@@ -3,11 +3,11 @@ show_duration = 5.0
 background = "#000"
 foreground_color = "#fff"
 
-[actions.RightClick]
-action = "Close"
-
 [actions.LeftClick]
 action = "OpenNotification"
+
+[actions.RightClick]
+action = "Close"
 
 [actions.ScrollUp]
 action = "Close"
@@ -22,16 +22,16 @@ height = 80
 enabled = true
 refresh_time = 30.0
 
-[battery.level.30]
-icon = "󰁼"
-show_duration = 5.0
-background = "#000"
-foreground = "#fff"
-
 [battery.level.15]
 icon = "󰁺"
 show_duration = 10.0
 background = "#ff6961"
+foreground = "#fff"
+
+[battery.level.30]
+icon = "󰁼"
+show_duration = 5.0
+background = "#000"
 foreground = "#fff"
 
 [urgency.low]
