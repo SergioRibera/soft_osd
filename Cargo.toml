@@ -37,13 +37,11 @@ zbus = { version = "5.1.0", default-features = false, features = ["tokio"] }
 [dependencies]
 config = { version = "0.1.0", path = "crates/config" }
 cosmic-text = "0.12.1"
-image.workspace = true
 parking_lot.workspace = true
 raqote.workspace = true
 smithay-client-toolkit = "0.19.2"
 tokio.workspace = true
 zbus.workspace = true
-serde.workspace = true
 services = { version = "0.1.0", path = "crates/services" }
 winit = { version = "0.30.5", git = "https://github.com/SergioRibera/winit", branch = "layer_shell", default-features = false, features = [
     "x11",
