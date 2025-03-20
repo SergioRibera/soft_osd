@@ -3,11 +3,11 @@ use svg::node::element::path::Command;
 use svg::parser::{Event, Parser};
 
 pub fn render(tree: Parser<'_>, draw: &mut DrawTarget) {
-    let mut scale_x = 1.0;
-    let mut scale_y = 1.0;
+    let mut scale_x: f32 = 1.0;
+    let mut scale_y: f32 = 1.0;
 
-    let mut last_x = 0.0;
-    let mut last_y = 0.0;
+    let mut last_x: f32 = 0.0;
+    let mut last_y: f32 = 0.0;
 
     for event in tree {
         match event {

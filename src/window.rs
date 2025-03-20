@@ -7,7 +7,7 @@ use winit::{
     dpi::{LogicalPosition, LogicalSize},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
-    monitor::VideoModeHandle,
+    monitor::MonitorHandle,
     platform::{
         wayland::{Anchor, Layer, Region, WindowAttributesExtWayland, WindowExtWayland},
         x11::WindowAttributesExtX11,
@@ -48,13 +48,16 @@ fn create_window<T: AppTy>(
     output: String,
     event_loop: &dyn ActiveEventLoop,
     window_attrs: WindowAttributes,
-    scale_factor: f64,
-    monitor_mode: VideoModeHandle,
+    screen: MonitorHandle,
 ) -> Option<WindowState> {
     let LogicalSize::<u32> {
         width: sw,
         height: sh,
-    } = monitor_mode.size().to_logical(scale_factor);
+    } = screen
+        .current_video_mode()
+        .unwrap()
+        .size()
+        .to_logical(screen.scale_factor());
     let w = app.width;
     let h = app.height;
     let (x, y) = match app.position {
@@ -63,7 +66,6 @@ fn create_window<T: AppTy>(
         OsdPosition::Right => (sw as u32 - w, (sh as u32 / 2) - h / 2),
         OsdPosition::Bottom => ((sw as u32 / 2) - w / 2, sh as u32 - h),
     };
-    let screen = monitor_mode.monitor();
     println!(
         "Screen({:?}): ({sw}, {sh}) => {:?} ({x}, {y}, {w}, {h})",
         screen.name(),
@@ -71,8 +73,6 @@ fn create_window<T: AppTy>(
     );
 
     let window_attrs = if is_wayland() {
-        use winit::platform::wayland::MonitorHandleExtWayland;
-
         window_attrs
             .with_anchor(Anchor::LEFT | Anchor::TOP | Anchor::RIGHT)
             .with_layer(Layer::Overlay)
@@ -187,30 +187,19 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
         }
 
         for screen in event_loop.available_monitors().into_iter() {
-            let Some(mode) = screen.current_video_mode() else {
-                continue;
-            };
-            let name = if is_wayland() {
-                use winit::platform::wayland::MonitorHandleExtWayland;
-                screen.name().unwrap_or(screen.native_id().to_string())
-            } else {
-                use winit::platform::x11::MonitorHandleExtX11;
-                screen.name().unwrap_or(screen.native_id().to_string())
-            };
+            let name = screen
+                .name()
+                .map(|s| s.to_string())
+                .unwrap_or(screen.native_id().to_string());
             if output.as_ref().is_some_and(|o| *o != name) {
                 continue;
             }
             let window_attributes = window_attributes
                 .clone()
                 .with_title(format!("__sosd_{name}"));
-            let Some(window_state) = create_window(
-                self,
-                name,
-                event_loop,
-                window_attributes,
-                screen.scale_factor(),
-                mode,
-            ) else {
+            let Some(window_state) =
+                create_window(self, name, event_loop, window_attributes, screen)
+            else {
                 continue;
             };
             let window_id = window_state.window.id();
@@ -263,6 +252,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
 
         // If the logic is collapsed not works :(
         #[allow(clippy::collapsible_if)]
+        #[allow(clippy::collapsible_else_if)]
         if can_show {
             if !self.active_input && is_wayland() {
                 self.active_input = true;
