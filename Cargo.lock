@@ -384,6 +384,7 @@ dependencies = [
  "clap",
  "directories",
  "merge2",
+ "mirror-mirror",
  "serde",
  "toml",
 ]
@@ -419,6 +420,12 @@ checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "critical-section"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
 name = "crossbeam-deque"
@@ -992,6 +999,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mirror-mirror"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdca851230f7292fb2d3bc36b20aa8c25f6a8975e1652ea24b738596f9c645ef"
+dependencies = [
+ "ahash",
+ "mirror-mirror-macros",
+ "once_cell",
+ "syn",
+ "tiny-ordered-float",
+]
+
+[[package]]
+name = "mirror-mirror-macros"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "873a8136d73249ded007bc60b4a2e0fc44558469e622f86a84e906361fb79131"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "ndk"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1163,6 +1194,10 @@ name = "once_cell"
 version = "1.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d75b0bedcc4fe52caa0e03d9f1151a323e4aa5e2d78ba3580400cd3c9e2bc4bc"
+dependencies = [
+ "critical-section",
+ "portable-atomic",
+]
 
 [[package]]
 name = "option-ext"
@@ -1325,6 +1360,12 @@ dependencies = [
  "tracing",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "portable-atomic"
+version = "1.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
 
 [[package]]
 name = "proc-macro-crate"
@@ -1854,6 +1895,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "tiny-ordered-float"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a43fe20b81bb52ecac2d82b661775b44608cdf3ea717603d69280091f126575"
 
 [[package]]
 name = "tiny-xlib"

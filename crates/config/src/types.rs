@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{swap_option, Action, BatteryConfig, Urgency};
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, ValueEnum, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub enum OsdPosition {
     #[default]
     Top,
@@ -21,10 +22,12 @@ fn serde_default_output() -> Option<String> {
 
 #[derive(Debug, Clone, PartialEq, Parser, Serialize, Deserialize, Merge)]
 #[clap(author, version)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct Config {
     /// Path to load config
     #[clap(long, short)]
     #[serde(skip)]
+    #[cfg_attr(feature = "reflect", reflect(skip))]
     pub config: Option<PathBuf>,
 
     #[clap(flatten)]
@@ -55,10 +58,12 @@ pub struct Config {
     #[clap(subcommand)]
     #[serde(skip)]
     #[merge(strategy = merge2::any::overwrite)]
+    #[cfg_attr(feature = "reflect", reflect(skip))]
     pub command: OsdType,
 }
 
 #[derive(Debug, Clone, PartialEq, Parser, Serialize, Deserialize, Merge)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct Global {
     /// The animation duration to show the widget (in milliseconds)
     #[clap(long, short = 'd', default_value = "1.0")]
@@ -79,6 +84,7 @@ pub struct Global {
 }
 
 #[derive(Debug, Clone, PartialEq, Parser, Serialize, Deserialize, Merge)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct Window {
     /// The Position into Screen
     #[clap(long, short, default_value = "top")]
@@ -99,6 +105,7 @@ pub struct Window {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct UrgencyConfig {
     pub low: UrgencyItemConfig,
     pub normal: UrgencyItemConfig,
@@ -106,6 +113,7 @@ pub struct UrgencyConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Merge)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct UrgencyItemConfig {
     /// The animation duration to show the widget (in seconds)
     #[merge(strategy = swap_option)]

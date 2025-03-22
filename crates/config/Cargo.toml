@@ -3,9 +3,20 @@ name = "config"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "gen"
+path = "src/bin/gen.rs"
+required-features = ["reflect"]
+
+[features]
+reflect = ["dep:mirror-mirror"]
+
 [dependencies]
 clap = { version = "4.5.20", features = ["derive"] }
 directories = "5.0.1"
 merge2 = "0.3.0"
+mirror-mirror = { version = "0.1.20", default-features = false, optional = true, features = [
+    "std",
+] }
 serde.workspace = true
 toml = "0.8.19"

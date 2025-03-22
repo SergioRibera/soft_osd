@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{de, ser, Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct BatteryConfig {
     pub enabled: bool,
     pub refresh_time: f32,
@@ -10,9 +11,11 @@ pub struct BatteryConfig {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BatteryLevelAlerts(pub HashMap<u8, BatteryLevel>);
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
+pub struct BatteryLevelAlerts(pub BTreeMap<u8, BatteryLevel>);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct BatteryLevel {
     pub icon: String,
     /// The animation duration to show the widget (in seconds)
@@ -47,7 +50,7 @@ impl<'de> Deserialize<'de> for BatteryLevelAlerts {
                     .map_err(de::Error::custom)
                     .map(|key| (key, v))
             })
-            .collect::<Result<HashMap<_, _>, _>>()?;
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
         Ok(BatteryLevelAlerts(map))
     }
 }
@@ -63,7 +66,7 @@ impl Default for BatteryConfig {
         Self {
             enabled: false,
             refresh_time: 30.0,
-            level: Some(BatteryLevelAlerts(HashMap::from_iter([
+            level: Some(BatteryLevelAlerts(BTreeMap::from_iter([
                 (30, urgency_default),
                 // Critical
                 (

@@ -1,17 +1,21 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use merge2::Merge;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub enum NotificationAction {
     #[default]
     OpenNotification,
     Close,
 }
 
-#[derive(Debug, Hash, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Debug, Hash, Default, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize,
+)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub enum InputAction {
     #[default]
     LeftClick,
@@ -24,6 +28,7 @@ pub enum InputAction {
 }
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub enum InputModifier {
     Shift,
     #[default]
@@ -33,6 +38,7 @@ pub enum InputModifier {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub struct InputEvent {
     pub modifier: Option<InputModifier>,
     pub action: NotificationAction,
@@ -53,13 +59,14 @@ impl InputEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Merge)]
-#[merge(strategy = merge2::hashmap::replace)]
+#[merge(strategy = merge2::any::overwrite)]
 #[serde(transparent)]
-pub struct Action(HashMap<InputAction, InputEvent>);
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
+pub struct Action(BTreeMap<InputAction, InputEvent>);
 
 impl Action {
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self(BTreeMap::new())
     }
 
     pub fn add(&mut self, action: InputAction, event: InputEvent) {
@@ -88,12 +95,12 @@ impl Default for Action {
 
 impl From<HashMap<InputAction, InputEvent>> for Action {
     fn from(map: HashMap<InputAction, InputEvent>) -> Self {
-        Self(map)
+        Self(BTreeMap::from_iter(map.into_iter()))
     }
 }
 
 impl Deref for Action {
-    type Target = HashMap<InputAction, InputEvent>;
+    type Target = BTreeMap<InputAction, InputEvent>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

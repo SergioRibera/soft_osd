@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Config, UrgencyItemConfig};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
+#[cfg_attr(feature = "reflect", derive(mirror_mirror::Reflect))]
 pub enum Urgency {
     Low,
     #[default]
