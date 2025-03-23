@@ -18,7 +18,7 @@ in
     # crane: cargo and artifacts manager
     craneLib = crane.overrideToolchain toolchain;
 
-    # buildInputs for Simplemoji
+    # buildInputs
     buildInputs = with pkgs; [
       fontconfig.dev
       libxkbcommon.dev

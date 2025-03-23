@@ -13,28 +13,24 @@
   } @ inputs: let
       fenix = inputs.fenix.packages;
     in
-    # Iterate over Arm, x86 for MacOs 🍎 and Linux 🐧
     (flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
         crane = inputs.crane.mkLib pkgs;
-        sssBundle = import ./nix {
+        bundle = import ./nix {
           inherit pkgs system crane fenix;
         };
       in {
-        inherit (sssBundle) apps packages devShells;
+        inherit (bundle) apps packages devShells;
+        # nixosModules
+        nixosModules = {
+          default = import ./nix/nixos-module.nix {
+            inherit crane fenix;
+          };
+          home-manager = import ./nix/hm-module.nix {
+            inherit crane fenix;
+          };
+        };
       }
-    )) // (flake-utils.lib.eachDefaultSystemPassThrough (system: let
-        pkgs = nixpkgs.legacyPackages.${system};
-        crane = inputs.crane.mkLib pkgs;
-      in {
-      # Overlays
-      overlays.default = import ./nix/overlay.nix {
-        inherit crane fenix;
-      };
-      # nixosModules
-      nixosModules.default = import ./nix/nixos-module.nix {
-        inherit crane fenix;
-      };
-    }));
+    ));
 }
