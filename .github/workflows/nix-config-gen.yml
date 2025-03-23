@@ -1,0 +1,44 @@
+name: Generate Nix Config Definitions
+on:
+  workflow_call:
+  push:
+    paths:
+      - "crates/config/src/**.rs"
+
+jobs:
+  generate:
+    name: Generate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dsherret/rust-toolchain-file@v1
+      - name: Generate
+        run: cargo run -r -p config --bin gen -F reflect -- ./nix/config.nix
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet --exit-code -- nix; then
+            echo "No changes to commit."
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected."
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Commit changes
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add nix
+          git commit -m "chore: update nix config scheme"
+
+          git fetch origin "$HEAD_REF"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "HEAD:$HEAD_REF"
