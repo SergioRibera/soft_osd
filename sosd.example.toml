@@ -1,3 +1,4 @@
+[globals]
 animation_duration = 1.0
 show_duration = 5.0
 background = "#000"

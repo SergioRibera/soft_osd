@@ -31,7 +31,6 @@ pub struct Config {
     pub config: Option<PathBuf>,
 
     #[clap(flatten)]
-    #[serde(flatten)]
     pub globals: Global,
 
     /// Output Screen where notification has been showed
