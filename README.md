@@ -1,5 +1,7 @@
 # Notification Daemon (SOSD)
 
+https://github.com/user-attachments/assets/06e63914-0d2c-4677-a51a-dbe4c08d0e65
+
 **Notification Daemon** is a highly customizable notification system designed for Linux environments, supporting both Wayland and X11. It can function as a standalone notification daemon or as an SOSD (Scriptable On-Screen Display) through external scripts. The system is built to be flexible, allowing users to tailor it to their specific needs.
 
 ## Features
