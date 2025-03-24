@@ -1,4 +1,6 @@
 .env
 result
 ***/dist/
-***/target/
+target/
+*.mp4
+*.png
