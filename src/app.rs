@@ -387,11 +387,13 @@ impl App for MainApp {
                     slider.change_value(value);
                     slider.change_color(bg, fg);
                 } else {
-                    self.slider.replace(Slider::new(
+                    let mut slider = Slider::new(
                         &self.config,
                         (Some(safe_left), Some(self.half_y)),
                         (value, mult),
-                    ));
+                    );
+                    slider.change_color(bg, fg);
+                    self.slider.replace(slider);
                 }
             }
 

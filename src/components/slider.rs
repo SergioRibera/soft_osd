@@ -2,7 +2,7 @@ use raqote::{DrawOptions, Path, PathBuilder, SolidSource, Source};
 
 use config::OsdPosition;
 
-use crate::utils::{lighten_color, ToColor};
+use crate::utils::{adjust_brightness, contrast_ratio, ToColor};
 
 use super::Component;
 
@@ -17,6 +17,27 @@ pub struct Slider {
     position: OsdPosition,
 }
 
+fn generate_colors(fg: (u8, u8, u8), bg_x: (u8, u8, u8)) -> ((u8, u8, u8), (u8, u8, u8)) {
+    let slider_bg = adjust_brightness(fg, 0.7);
+    let slider_fg = adjust_brightness(fg, 1.3);
+
+    let contrast_bg = contrast_ratio(slider_bg, bg_x);
+    let slider_bg = if contrast_bg < 1.5 {
+        adjust_brightness(slider_bg, 0.6)
+    } else {
+        slider_bg
+    };
+
+    let contrast_fg = contrast_ratio(slider_fg, slider_bg);
+    let slider_fg = if contrast_fg < 2.0 {
+        adjust_brightness(slider_fg, 1.4)
+    } else {
+        slider_fg
+    };
+
+    (slider_bg, slider_fg)
+}
+
 impl Slider {
     pub fn change_value(&mut self, value: f32) {
         self.value = value.clamp(0.036, 1.0);
@@ -27,9 +48,9 @@ impl Slider {
     }
 
     pub fn change_color(&mut self, bg: SolidSource, new_color: SolidSource) {
-        let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
-        self.c = new_color;
-        self.bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
+        let (b, c) = generate_colors((new_color.r, new_color.g, new_color.b), (bg.r, bg.g, bg.b));
+        self.c = SolidSource::from_unpremultiplied_argb(new_color.a, c.0, c.1, c.2);
+        self.bg = SolidSource::from_unpremultiplied_argb(bg.a, b.0, b.1, b.2);
     }
 
     pub fn draw_slide(&self, y: f32, slider_width: f32) -> Path {
@@ -108,8 +129,9 @@ impl Component<'_> for Slider {
             .as_deref()
             .unwrap_or("#000")
             .to_color();
-        let (r, g, b) = lighten_color(bg.r, bg.g, bg.b, 0.3);
-        let bg = SolidSource::from_unpremultiplied_argb(bg.a, r, g, b);
+        let (nc, nb) = generate_colors((c.r, c.g, c.b), (bg.r, bg.g, bg.b));
+        let c = SolidSource::from_unpremultiplied_argb(c.a, nc.0, nc.1, nc.2);
+        let bg = SolidSource::from_unpremultiplied_argb(bg.a, nb.0, nb.1, nb.2);
         let value = (value / 100.0).clamp(0.036, 1.0);
 
         Self {
