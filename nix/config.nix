@@ -4,22 +4,22 @@
       options = {
         animation_duration = mkOption {
           type = types.nullOr types.float;
-          default = nill;
+          default = null;
           description = "The animation duration to show the widget (in milliseconds)";
         };
         show_duration = mkOption {
           type = types.nullOr types.float;
-          default = nill;
+          default = null;
           description = "The animation duration to show the widget (in seconds)";
         };
         background = mkOption {
           type = types.nullOr types.string;
-          default = nill;
+          default = null;
           description = "Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
         };
         foreground_color = mkOption {
           type = types.nullOr types.string;
-          default = nill;
+          default = null;
           description = "Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
         };
       };
@@ -27,7 +27,7 @@
   };
   output = mkOption {
     type = types.nullOr types.string;
-    default = nill;
+    default = null;
     description = "Output Screen where notification has been showed";
   };
   actions = mkOption {
@@ -53,17 +53,17 @@
         };
         radius = mkOption {
           type = types.nullOr types.number;
-          default = nill;
+          default = null;
           description = "The radius of the widget [default: 100]";
         };
         width = mkOption {
           type = types.nullOr types.number;
-          default = nill;
+          default = null;
           description = "The width of the widget [default: 600]";
         };
         height = mkOption {
           type = types.nullOr types.number;
-          default = nill;
+          default = null;
           description = "The height of the widget [default: 80]";
         };
       };
@@ -86,7 +86,7 @@
         };
         level = mkOption {
           type = types.nullOr types.attrs;
-          default = nill;
+          default = null;
         };
       };
     };
@@ -99,17 +99,17 @@
             options = {
               show_duration = mkOption {
                 type = types.nullOr types.float;
-                default = nill;
+                default = null;
                 description = "The animation duration to show the widget (in seconds)";
               };
               background = mkOption {
                 type = types.nullOr types.string;
-                default = nill;
+                default = null;
                 description = "Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
               };
               foreground_color = mkOption {
                 type = types.nullOr types.string;
-                default = nill;
+                default = null;
                 description = "Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
               };
             };
@@ -120,17 +120,17 @@
             options = {
               show_duration = mkOption {
                 type = types.nullOr types.float;
-                default = nill;
+                default = null;
                 description = "The animation duration to show the widget (in seconds)";
               };
               background = mkOption {
                 type = types.nullOr types.string;
-                default = nill;
+                default = null;
                 description = "Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
               };
               foreground_color = mkOption {
                 type = types.nullOr types.string;
-                default = nill;
+                default = null;
                 description = "Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
               };
             };
@@ -141,17 +141,17 @@
             options = {
               show_duration = mkOption {
                 type = types.nullOr types.float;
-                default = nill;
+                default = null;
                 description = "The animation duration to show the widget (in seconds)";
               };
               background = mkOption {
                 type = types.nullOr types.string;
-                default = nill;
+                default = null;
                 description = "Background Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
               };
               foreground_color = mkOption {
                 type = types.nullOr types.string;
-                default = nill;
+                default = null;
                 description = "Foreground Color of widget, support: '#RRGGBBAA', '#RGBA' and '#RGB'";
               };
             };

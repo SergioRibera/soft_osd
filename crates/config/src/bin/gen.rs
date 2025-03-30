@@ -154,7 +154,7 @@ fn toml_to_nix(value: &Value, indent: usize) -> String {
     match value {
         Value::String(s) => {
             if s.is_empty() {
-                "nill".to_string()
+                "null".to_string()
             } else {
                 format!("\"{s}\"")
             }
@@ -162,12 +162,12 @@ fn toml_to_nix(value: &Value, indent: usize) -> String {
         Value::Integer(i) => i.to_string(),
         Value::Float(f) => {
             if f.is_nan() {
-                "nill".to_string()
+                "null".to_string()
             } else if f.is_infinite() {
                 if f.is_sign_positive() {
-                    "nill".to_string()
+                    "null".to_string()
                 } else {
-                    "nill".to_string()
+                    "null".to_string()
                 }
             } else {
                 format!("{f:.1}")
