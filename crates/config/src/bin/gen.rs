@@ -124,7 +124,11 @@ fn infer_nix_type(type_info: &Type<'_>, toml_value: &Value, indent: usize) -> St
                     .unwrap()
                     .get_type();
                 let inner_type = infer_nix_type(&inner_type, toml_value, indent);
-                format!("types.nullOr {inner_type}")
+                if !inner_type.starts_with("types.submodule") {
+                    format!("types.nullOr {inner_type}")
+                } else {
+                    inner_type
+                }
             } else {
                 let enum_code = enum_info
                     .variants()

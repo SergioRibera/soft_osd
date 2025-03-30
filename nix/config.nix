@@ -45,7 +45,7 @@
     };
   };
   window = mkOption {
-    type = types.nullOr types.submodule {
+    type = types.submodule {
       options = {
         position = mkOption {
           type = types.enum [ "Top" "Left" "Right" "Bottom" ];
