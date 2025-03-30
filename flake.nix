@@ -22,6 +22,10 @@
         };
       in {
         inherit (bundle) apps packages devShells;
+    })) // (flake-utils.lib.eachDefaultSystemPassThrough (system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+        crane = inputs.crane.mkLib pkgs;
+      in {
         # nixosModules
         nixosModules = {
           default = import ./nix/nixos-module.nix {

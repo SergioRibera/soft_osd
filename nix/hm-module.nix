@@ -29,6 +29,5 @@ in {
   config = mkIf cfg.enable {
     home.packages = [cfg.package];
     home.file.".config/sosd/config.toml".source = tomlFormat.generate "config.toml" (filterCfg cfg);
-    boot.initrd.systemd.dbus.enable = true;
   };
 }
