@@ -40,6 +40,9 @@ in
         [pkgs.pkg-config]
         ++ lib.optionals stdenv.buildPlatform.isDarwin [
           pkgs.libiconv
+        ]
+        ++ lib.optionals stdenv.isLinux [
+          pkgs.libxkbcommon
         ];
       runtimeDependencies = with pkgs;
         lib.optionals stdenv.isLinux [
