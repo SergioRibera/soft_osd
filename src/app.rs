@@ -305,6 +305,7 @@ impl App for MainApp {
                     return;
                 }
                 self.current_id = None;
+                self.output = None;
                 // Si la ventana está oculta, iniciamos ambas animaciones
                 self.window_state = WindowState::Entering {
                     start_time: current_time,

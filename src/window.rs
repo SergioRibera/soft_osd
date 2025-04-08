@@ -238,6 +238,7 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
         let window = self.windows.get_mut(&window_id).unwrap();
 
         if window_draw.as_ref().is_some_and(|o| *o != window.output) {
+            window.window.request_redraw();
             return;
         }
 
