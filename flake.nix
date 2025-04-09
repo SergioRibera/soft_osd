@@ -1,39 +1,40 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    crane.url = "github:ipetkov/crane";
-    fenix.url = "github:nix-community/fenix";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
     nixpkgs,
     flake-utils,
+    rust-overlay,
     ...
-  } @ inputs: let
-      fenix = inputs.fenix.packages;
-    in
+  } @ inputs: 
     (flake-utils.lib.eachDefaultSystem (
       system: let
-        pkgs = nixpkgs.legacyPackages.${system};
-        crane = inputs.crane.mkLib pkgs;
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
         bundle = import ./nix {
-          inherit pkgs system crane fenix;
+          inherit pkgs system;
         };
       in {
         inherit (bundle) apps packages devShells;
-    })) // (flake-utils.lib.eachDefaultSystemPassThrough (system: let
-        pkgs = nixpkgs.legacyPackages.${system};
-        crane = inputs.crane.mkLib pkgs;
-      in {
+    })) // (flake-utils.lib.eachDefaultSystemPassThrough (system:
+      {
+        overlays.default = final: prev: {
+          sosd = inputs.self.packages.${prev.system}.default;
+        };
+
         # nixosModules
         nixosModules = {
-          default = import ./nix/nixos-module.nix {
-            inherit crane fenix;
-          };
-          home-manager = import ./nix/hm-module.nix {
-            inherit crane fenix;
-          };
+          default = ./nix/nixos-module.nix;
+          home-manager = ./nix/hm-module.nix;
         };
       }
     ));

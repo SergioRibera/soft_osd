@@ -1,78 +1,75 @@
-let
-  inherit (builtins) currentSystem;
-in
-  {
-    stdenv ? pkgs.stdenv,
-    system ? currentSystem,
-    lib ? pkgs.lib,
-    pkgs,
-    crane,
-    fenix,
-    ...
-  }: let
-    # fenix: rustup replacement for reproducible builds
-    toolchain = fenix.${system}.fromToolchainFile {
-      file = ./../rust-toolchain.toml;
-      sha256 = "sha256-Hn2uaQzRLidAWpfmRwSRdImifGUCAb9HeAqTYFXWeQk=";
-    };
-    # crane: cargo and artifacts manager
-    craneLib = crane.overrideToolchain toolchain;
+{
+  stdenv ? pkgs.stdenv,
+  lib ? pkgs.lib,
+  pkgs ? import <nixpkgs> { },
+  ...
+}: let
+  toolchain = (pkgs.rust-bin.fromRustupToolchainFile ./../rust-toolchain.toml);
+  cargoManifest = lib.importTOML ./../Cargo.toml;
 
-    # buildInputs
-    buildInputs = with pkgs; [
-      fontconfig.dev
-      libxkbcommon.dev
-      xorg.libX11
-      xorg.libXcursor
-      xorg.libXi
-      xorg.libXrandr
-      wayland
+  # buildInputs
+  buildInputs = with pkgs; [
+    fontconfig.dev
+    libxkbcommon.dev
+    xorg.libX11
+    xorg.libXcursor
+    xorg.libXi
+    xorg.libXrandr
+    wayland
+    libgcc
+  ];
+
+  appBase = pkgs.rustPlatform.buildRustPackage {
+    pname = cargoManifest.package.name;
+    version = cargoManifest.package.version;
+    src = pkgs.lib.cleanSource ./..;
+    cargoLock = {
+      lockFile = ./../Cargo.lock;
+      outputHashes = {
+        "dpi-0.1.1" = "sha256-SJvOy8Tqyt9BmH7yQ9G12B7ZsqKU4G6Tp7/3SYnXmKI=";
+      };
+    };
+    doCheck = false;
+    nativeBuildInputs = with pkgs;
+      lib.optionals stdenv.isLinux [
+        pkg-config
+        autoPatchelfHook
+      ]
+      ++ lib.optionals stdenv.buildPlatform.isDarwin [
+        libiconv
+      ];
+    runtimeDependencies = with pkgs;
+      lib.optionals stdenv.isLinux [
+        wayland
+        libxkbcommon
+      ];
+
+    postFixup = lib.optionalString stdenv.isLinux ''
+      patchelf --set-rpath "${lib.makeLibraryPath buildInputs}" $out/bin/${cargoManifest.package.name}
+    '';
+
+    dontWrapQtApps = true;
+    makeWrapperArgs = [
+      "--prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs}"
+      "--prefix PATH : ${lib.makeBinPath [ pkgs.wayland ]}"
     ];
-    src = lib.cleanSourceWith {
-      src = craneLib.path ./..;
-      filter = path: type: (craneLib.filterCargoSources path type);
-    };
+    inherit buildInputs;
+  };
 
-    # Base args, need for build all crate artifacts and caching this for late builds
-    commonArgs = {
-      doCheck = false;
-      nativeBuildInputs =
-        [pkgs.pkg-config]
-        ++ lib.optionals stdenv.buildPlatform.isDarwin [
-          pkgs.libiconv
-        ]
-        ++ lib.optionals stdenv.isLinux [
-          pkgs.libxkbcommon
-        ];
-      runtimeDependencies = with pkgs;
-        lib.optionals stdenv.isLinux [
-          wayland
-          libxkbcommon
-        ];
-
-      inherit src buildInputs;
-    };
-
-    # app artifacts
-    appDeps = craneLib.buildDepsOnly commonArgs;
-    appBase = (craneLib.buildPackage (commonArgs // {
-      cargoArtifacts = appDeps;
-    }));
-
-  in {
-    # `nix run`
-    apps.default = appBase;
-    # `nix build`
-    packages.default = appBase;
-    # `nix develop`
-    devShells.default = craneLib.devShell {
-      packages = with pkgs; [
-          toolchain
-          pkg-config
-          cargo-dist
-          cargo-release
-        ] ++ buildInputs;
-      LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
-      PKG_CONFIG_PATH = "${pkgs.fontconfig.dev}/lib/pkgconfig";
-    };
-  }
+in {
+  # `nix run`
+  apps.default = appBase;
+  # `nix build`
+  packages.default = appBase;
+  # `nix develop`
+  devShells.default = pkgs.mkShell {
+    packages = with pkgs; [
+        toolchain
+        pkg-config
+        cargo-dist
+        cargo-release
+      ] ++ buildInputs;
+    LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
+    PKG_CONFIG_PATH = "${pkgs.fontconfig.dev}/lib/pkgconfig";
+  };
+}
