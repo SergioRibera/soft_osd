@@ -35,10 +35,10 @@ impl TryFrom<(String, f32)> for Icon {
                 }
                 Err(IconError::CannotLoadFormats(&["png", "jpeg", "jpg"]))
             }
-            Some("svg") => {
-                let img = raqote_svg::render_to_image(std::fs::read_to_string(path)?, (size, size));
-                Ok(Self::Image(img))
-            }
+            // Some("svg") => {
+            //     let img = raqote_svg::render_to_image(std::fs::read_to_string(path)?, (size, size));
+            //     Ok(Self::Image(img))
+            // }
             e => Err(IconError::CannotLoadFormat(
                 e.unwrap_or_default().to_owned(),
             )),

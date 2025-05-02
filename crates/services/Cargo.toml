@@ -8,7 +8,6 @@ bincode = "1.3.3"
 config = { version = "0.1.0", path = "../config" }
 image.workspace = true
 parking_lot.workspace = true
-raqote_svg = { version = "0.1.0", path = "../raqote_svg", features = ["image"] }
 serde.workspace = true
 tokio.workspace = true
 zbus.workspace = true

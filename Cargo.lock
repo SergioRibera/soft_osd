@@ -1671,7 +1671,6 @@ dependencies = [
  "config",
  "image",
  "parking_lot",
- "raqote_svg",
  "serde",
  "tokio",
  "zbus",
