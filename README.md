@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/06e63914-0d2c-4677-a51a-dbe4c08d0e65
 To install the Notification Daemon, clone the repository and build it using Cargo:
 
 ```bash
-cargo install --git https://github.com/SergioRibera/soft_osd
+cargo install --git https://github.com/SergioRibera/soft_osd sosd
 ```
 
 ## Configuration
