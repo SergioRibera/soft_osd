@@ -1,11 +1,12 @@
+use parking_lot::RwLock;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use zbus::Connection;
 
 use crate::Result;
 
 use self::bluez::get_bluez_batteries;
-use self::sys::get_batteries;
+use self::sys::{get_batteries, get_charger};
 
 mod bluez;
 mod sys;
@@ -57,17 +58,21 @@ pub struct BatteryManager {
 
 impl BatteryManager {
     /// Create a new BatteryManager
-    pub async fn new() -> Result<Self> {
+    pub async fn new(on_charger: impl Fn(bool) + Send + Sync + 'static) -> Result<Self> {
+        let batteries = RwLock::new(Vec::with_capacity(4));
+        let on_charger = Arc::new(on_charger);
+
         let manager = BatteryManager {
-            batteries: RwLock::new(Vec::with_capacity(4)),
+            batteries,
             connection: Connection::system().await?,
         };
+
         manager.refresh().await?;
         Ok(manager)
     }
 
     pub fn all(&self) -> Vec<Battery> {
-        self.batteries.read().unwrap().clone()
+        self.batteries.read().clone()
     }
 
     /// Refresh battery states
@@ -79,7 +84,7 @@ impl BatteryManager {
         }
 
         batteries.sort_by_key(|b| b.level());
-        *self.batteries.write().unwrap() = batteries;
+        *self.batteries.write() = batteries;
         Ok(())
     }
 
@@ -87,7 +92,6 @@ impl BatteryManager {
     pub fn batteries_below(&self, level: u8) -> Vec<Battery> {
         self.batteries
             .read()
-            .unwrap()
             .iter()
             .filter(|b| b.level() < level)
             .cloned()
@@ -96,7 +100,7 @@ impl BatteryManager {
 
     /// Get battery by name or path
     pub fn battery_by_name(&self, name: &str) -> Option<Battery> {
-        let borrow = self.batteries.read().unwrap();
+        let borrow = self.batteries.read();
         borrow
             .iter()
             .find(|b| {

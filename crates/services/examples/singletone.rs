@@ -50,6 +50,10 @@ impl<'a> ServiceReceive<'a> for App<'a> {
     fn set_broadcast(&mut self, broadcast: ServiceBroadcast<'a>) {
         self.broadcast.replace(broadcast);
     }
+
+    fn charger_connected(&mut self, state: bool) {
+        println!("Charger connected: {state}");
+    }
 }
 
 impl<'a> SingletoneListener<AppMessage> for App<'a> {

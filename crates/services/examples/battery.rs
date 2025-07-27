@@ -6,7 +6,14 @@ use services::BatteryManager;
 #[tokio::main]
 async fn main() {
     // this support bluetooth too
-    let mut manager = BatteryManager::new().await.unwrap();
+    let manager = BatteryManager::new(|changed| {
+        println!(
+            "Battery charger: {:?}",
+            if changed { "Connected" } else { "Disconnected" }
+        );
+    })
+    .await
+    .unwrap();
 
     loop {
         for bat in manager.all() {

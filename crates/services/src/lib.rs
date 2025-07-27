@@ -28,6 +28,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait ServiceReceive {
     fn set_broadcast(&mut self, broadcast: ServiceBroadcast);
+    fn charger_connected(&mut self, state: bool);
     fn batteries_below(&mut self, level: u8, batteries: &[Battery]);
 }
 
@@ -116,7 +117,14 @@ where
         levels: Vec<u8>,
     ) -> Result<Self> {
         let battery = if enable && self.is_daemon {
-            Some(BatteryManager::new().await?)
+            let receiver = self.receiver.clone();
+            Some(
+                BatteryManager::new(move |charger_connected| {
+                    let mut receiver = { receiver.lock() };
+                    receiver.charger_connected(charger_connected);
+                })
+                .await?,
+            )
         } else {
             None
         };

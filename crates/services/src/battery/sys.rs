@@ -70,3 +70,19 @@ pub fn get_batteries() -> Result<Vec<Battery>> {
 
     Ok(batteries)
 }
+
+pub fn get_charger() -> Result<bool> {
+    let chargers = fs::read_dir("/sys/class/power_supply")?
+        .filter_map(|entry| entry.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(OsStr::to_str)
+                .unwrap_or("")
+                .starts_with("A")
+        })
+        .map(|p| fs::read_to_string(p.join("online")))
+        .collect::<std::io::Result<Vec<_>>>()?;
+
+    Ok(chargers.iter().any(|c| c.trim() == "1"))
+}

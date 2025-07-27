@@ -13,6 +13,7 @@ pub enum Error {
     ParseError(ParseIntError),
     InvalidBatteryState(String),
     MissingBatteryField(String),
+    MissingCharger,
 
     // Singletone
     ServerNotRunning,
@@ -40,6 +41,9 @@ impl fmt::Display for Error {
             }
             Error::MissingBatteryField(field) => {
                 write!(f, "Missing Battery Field: {field}")
+            }
+            Error::MissingCharger => {
+                write!(f, "Missing Charger")
             }
             Error::Serialization(e) => write!(f, "Error with bincode: {e}"),
             Error::Icon(e) => write!(f, "Error to handle Icon: {e}"),
