@@ -11,6 +11,7 @@
   buildInputs = with pkgs; [
     fontconfig.dev
     libxkbcommon.dev
+    xorg.libxcb
     xorg.libX11
     xorg.libXcursor
     xorg.libXi
@@ -26,7 +27,7 @@
     cargoLock = {
       lockFile = ./../Cargo.lock;
       outputHashes = {
-        "dpi-0.1.1" = "sha256-SJvOy8Tqyt9BmH7yQ9G12B7ZsqKU4G6Tp7/3SYnXmKI=";
+        "dpi-0.1.2" = "sha256-7DW0eaqJ5S0ixl4aio+cAE8qnq77tT9yzbemJJOGDX0=";
       };
     };
     doCheck = false;
@@ -51,7 +52,7 @@
     dontWrapQtApps = true;
     makeWrapperArgs = [
       "--prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath buildInputs}"
-      "--prefix PATH : ${lib.makeBinPath [ pkgs.wayland ]}"
+      # "--prefix PATH : ${lib.makeBinPath [ pkgs.wayland ]}"
     ];
     inherit buildInputs;
   };

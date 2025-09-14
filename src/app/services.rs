@@ -89,6 +89,10 @@ impl ServiceReceive for MainApp {
     fn set_broadcast(&mut self, broadcast: ServiceBroadcast) {
         self.broadcast.replace(broadcast);
     }
+
+    fn charger_connected(&mut self, _state: bool) {
+        todo!("Config to handle when charger is connected")
+    }
 }
 
 impl SingletoneListener<(Option<String>, Option<String>, Option<String>, OsdType)> for MainApp {

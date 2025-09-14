@@ -2,16 +2,14 @@ use std::{collections::HashMap, num::NonZero, sync::Arc};
 
 use parking_lot::Mutex;
 use raqote::DrawTarget;
+use smithay_client_toolkit::compositor::Region;
 use winit::{
     application::ApplicationHandler,
     dpi::{LogicalPosition, LogicalSize},
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
     monitor::MonitorHandle,
-    platform::{
-        wayland::{Anchor, Layer, Region, WindowAttributesExtWayland, WindowExtWayland},
-        x11::WindowAttributesExtX11,
-    },
+    platform::wayland::{Anchor, Layer, WindowAttributesWayland},
     window::{WindowAttributes, WindowId},
 };
 
@@ -73,12 +71,15 @@ fn create_window<T: AppTy>(
     );
 
     let window_attrs = if is_wayland() {
-        window_attrs
-            .with_anchor(Anchor::LEFT | Anchor::TOP | Anchor::RIGHT)
-            .with_layer(Layer::Overlay)
-            .with_margin(y as i32, x as i32, 0, x as i32)
-            .with_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
-            .with_output(screen.native_id())
+        window_attrs.with_platform_attributes(Box::new(
+            WindowAttributesWayland::default()
+                .with_layer_shell()
+                .with_anchor(Anchor::LEFT | Anchor::TOP | Anchor::RIGHT)
+                .with_layer(Layer::Overlay)
+                .with_margin(y as i32, x as i32, 0, x as i32)
+                .with_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
+                .with_output(screen.native_id()),
+        ))
     } else {
         window_attrs.with_position(LogicalPosition::new(x, y))
     };
@@ -154,7 +155,7 @@ impl<T: AppTy> Window<T> {
 
 impl<T: AppTy> ApplicationHandler for Window<T> {
     fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
-        let mut window_attributes = WindowAttributes::default()
+        let window_attributes = WindowAttributes::default()
             .with_decorations(false)
             .with_transparent(true)
             .with_surface_size(LogicalSize::new(self.width, self.height))
@@ -164,27 +165,6 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             let lock = self.render.lock();
             lock.get_output()
         };
-
-        #[cfg(target_os = "linux")]
-        match std::env::var("X11_VISUAL_ID") {
-            Ok(visual_id_str) => {
-                // info!("Using X11 visual id {visual_id_str}");
-                let visual_id = visual_id_str.parse().unwrap();
-                window_attributes = window_attributes.with_x11_visual(visual_id);
-            }
-            Err(_) => println!("Set the X11_VISUAL_ID env variable to request specific X11 visual"),
-        }
-        #[cfg(target_os = "linux")]
-        match std::env::var("X11_SCREEN_ID") {
-            Ok(screen_id_str) => {
-                // info!("Placing the window on X11 screen {screen_id_str}");
-                let screen_id = screen_id_str.parse().unwrap();
-                window_attributes = window_attributes.with_x11_screen(screen_id);
-            }
-            Err(_) => println!(
-                "Set the X11_SCREEN_ID env variable to place the window on non-default screen"
-            ),
-        }
 
         for screen in event_loop.available_monitors() {
             let name = screen
@@ -204,21 +184,18 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
             };
             let window_id = window_state.window.id();
             if self.safe_area.is_none() && is_wayland() {
-                self.safe_area.replace(
-                    window_state
-                        .window
-                        .create_region(
-                            LogicalPosition::new(self.safe_left, 0),
-                            LogicalSize::new(self.max_width, self.height as i32),
-                        )
-                        .unwrap(),
-                );
-                self.passthrought_area.replace(
-                    window_state
-                        .window
-                        .create_region(LogicalPosition::new(0, 0), LogicalSize::new(0, 0))
-                        .unwrap(),
-                );
+                let window = window_state
+                    .window
+                    .cast_ref::<winit::platform::wayland::Window>()
+                    .unwrap();
+
+                let safe_area = window.create_region().unwrap();
+                safe_area.add(self.safe_left, 0, self.max_width, self.height as i32);
+                self.safe_area.replace(safe_area);
+
+                let passthrought_area = window.create_region().unwrap();
+                passthrought_area.add(0, 0, 0, 0);
+                self.passthrought_area.replace(passthrought_area);
             }
             println!("Created new window with id={window_id:?}");
             self.windows.insert(window_id, window_state);
@@ -257,16 +234,24 @@ impl<T: AppTy> ApplicationHandler for Window<T> {
         if can_show {
             if !self.active_input && is_wayland() {
                 self.active_input = true;
-                for window in self.windows.values_mut() {
-                    window.window.set_region(self.safe_area.as_ref());
+                for window_state in self.windows.values_mut() {
+                    let window = window_state
+                        .window
+                        .cast_ref::<winit::platform::wayland::Window>()
+                        .unwrap();
+                    window.set_region(self.safe_area.as_ref());
                 }
                 println!("Active input");
             }
         } else {
             if self.active_input && is_wayland() {
                 self.active_input = false;
-                for window in self.windows.values_mut() {
-                    window.window.set_region(self.passthrought_area.as_ref());
+                for window_state in self.windows.values_mut() {
+                    let window = window_state
+                        .window
+                        .cast_ref::<winit::platform::wayland::Window>()
+                        .unwrap();
+                    window.set_region(self.passthrought_area.as_ref());
                 }
                 println!("Disable input");
             }
